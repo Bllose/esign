@@ -8,7 +8,7 @@ e签宝补救措施
 """
 
 from datetime import datetime, timezone  
-from bllose.config.Config import class_config
+from bllose.config.Config import bConfig
 import hashlib  
 import base64
 import hmac
@@ -19,8 +19,8 @@ import logging
 import json
 import urllib
 
-@class_config
 class eqb_sign():
+    @bConfig()
     def __init__(self, env:str = 'test', config = {}) -> None:
         # 通过配置加载工具加载的配置内容
         # 后续逻辑直接使用保存下载的config对象, 获取对应的配置项
@@ -44,17 +44,28 @@ class eqb_sign():
         self.type = 'POST'
         
 
-    def fetchUpdateFileUrl(self, contentMd5: str, fileName: str, fileSize: int) -> tuple:
+    def fetchUpdateFileUrl(self, contentMd5: str, fileName: str, fileSize: int, 
+                           convertToHTML: bool = False) -> tuple:
         """
         申请上传合同文件
         获取最终上传文件的地址
+        Args:
+            contentMd5(str): 文件MD5编码的base64格式字符串
+            fileName(str): 文件名称
+            fileSize(long): 文件大小
+            convertToHTML(bool): 是否转化为 html （动态模版、可变长字符串等需要转化才行）
+        Returns:
+            fileUploadInfo(tuple): 包含两个元素的元组
+                - fileId(str): 文件ID
+                - fileUploadUrl(str): 文件上传路径
         """
         current_url = r'/v3/files/file-upload-url'
         request_dict = {
                         "contentMd5": contentMd5,
                         "contentType": "application/octet-stream",
                         "fileName": fileName,
-                        "fileSize": fileSize
+                        "fileSize": fileSize,
+                        "convertToHTML": convertToHTML
                     }
         bodyRaw = json.dumps(request_dict)
         self.establish_head_code(bodyRaw, current_url)
@@ -69,7 +80,14 @@ class eqb_sign():
         """
         上传选中的文件
         PUT请求，单独处理
-        @param putUrl: 由 #fetchUpdateFileUrl 调用e签宝返回的上传地址
+        Args:
+            putUrl(str): 由 #fetchUpdateFileUrl 调用e签宝返回的上传地址
+            md5(str): 文件的MD5值，base64格式
+            absPath(str): 文件的绝对路径
+        Returns:
+            result(tuple): 返回结果
+                - code(str): 返回编码
+                - reason(str): 返回信息
         ```
         file_path = r'\to\your\file\path'
         fileName = r'your_file_name.pdf'
@@ -115,19 +133,95 @@ class eqb_sign():
 
     def fetchFileByFileId(self, fileId: str) -> tuple:
         """
-        通过制作合同文件(#uploadFile)所得的fileId， 得到下载合同文件的下载地址
+        <h1>查询文件上传状态</h1>
+        <p>可以用于下载合同文件</p>
+        Args:
+            fileId(str): 文件ID
+        Returns:
+            fileInfo(tuple): 文件相关信息
+                - fileName(str): 文件名字
+                - fileDownloadUrl(str): 文件下载地址，如果有的话
+                - fileStatus(int): 文件转化状态
+        ```
+        fileStatus 枚举：
+        0 - 文件未上传
+        1 - 文件上传中
+        2 - 文件上传已完成 或 文件已转换（HTML）
+        3 - 文件上传失败
+        4 - 文件等待转换（PDF）
+        5 - 文件已转换（PDF）
+        6 - 加水印中
+        7 - 加水印完毕
+        8 - 文件转化中（PDF）
+        9 - 文件转换失败（PDF）
+        10 - 文件等待转换（HTML）
+        11 - 文件转换中（HTML）
+        12 - 文件转换失败（HTML）
+        ```
         """
         current_path = f'/v3/files/{fileId}'
         self.establish_head_code(None, current_path, 'GET')
         response_json = self.getResponseJson(None, current_path)
         if response_json['code'] != 0:
             logging.warning(f'下载文件{fileId}失败，返回报文:{json.dumps(response_json)}')
-            return '', ''
+            return '', '', ''
         data = response_json['data']
         fileName = data['fileName']
         fileDownloadUrl = data['fileDownloadUrl']
-        return fileName, fileDownloadUrl
+        fileStatus = data['fileStatus']
+        return fileName, fileDownloadUrl, fileStatus
     
+    def docTemplateCreateUrl(self, fileId, docTemplateName, docTemplateType):
+        """
+        <h1>获取制作合同模板页面</h1>
+        Args:
+            fileId(str): 文件Id
+            docTemplateName(str): 模版名称
+            docTemplateType(int): 模版类型
+        ```
+        docTemplateType 模版类型枚举
+        0 - PDF模板
+        1 - HTML模板（适用动态增加表格行并填充内容场景）
+        ```
+        Returns:
+            templateInfo(tuple): 模版相关信息
+                - docTemplateId(str): 模版ID
+                - docTemplateCreateUrl(str): 模版创建URL地址
+        """
+        current_path = r'/v3/doc-templates/doc-template-create-url'
+        request_dict = {
+            'fileId': fileId,
+            'docTemplateType': docTemplateType,
+            'docTemplateName': docTemplateName
+        }
+        bodyRaw = json.dumps(request_dict)
+        self.establish_head_code(bodyRaw, current_path)
+        response_json = self.getResponseJson(bodyRaw, current_path)
+        if response_json['code'] == 0:
+            data = response_json['data']
+            return data['docTemplateId'], data['docTemplateCreateUrl']
+        else:
+            logging.warning(f'由文件{fileId}创建合同模版失败,返回报文 -> {response_json}')
+            return '', ''
+        
+    def docTemplateEditUrl(self, templateId:str) -> str:
+        """
+        获取编辑合同模板页面
+        Args:
+            templateId(str): 模版ID
+        Returns:
+            url(str): 编辑url 24小时有效
+        """
+        current_path = f'/v3/doc-templates/{templateId}/doc-template-edit-url'
+        request_dict = {
+        }
+        bodyRaw = json.dumps(request_dict)
+        self.establish_head_code(bodyRaw, current_path)
+        response_json = self.getResponseJson(bodyRaw, current_path)
+        if response_json['code'] == 0:
+            data = response_json['data']
+            return data['docTemplateEditUrl']
+
 
     def fetchSignUrl(self, flowId, mobile):
         current_path = f'/v3/sign-flow/{flowId}/sign-url'
@@ -447,3 +541,35 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     client: eqb_sign = eqb_sign(env='test')
 
+    import os
+
+    root_path = r'C:\Users\bllos\Desktop\[4975116715] 中信建设期二次放款系统对接——结算（含退货）模块'
+    for root, dirs, files in os.walk(root_path):
+        for curFileName in files:
+            abs_path = root + os.sep + curFileName
+            file_name = os.path.basename(abs_path)
+            contentMd5=md5_base64_file(abs_path)
+            
+            fileId, fileUploadUrl = client.fetchUpdateFileUrl(contentMd5=contentMd5,
+                                    fileName=file_name,
+                                    fileSize=os.path.getsize(abs_path),
+                                    convertToHTML=True)
+            print(f'文件ID:{fileId}, 上传地址:{fileUploadUrl}')
+            if fileUploadUrl is not None:
+                code, reason = client.uploadFile(fileUploadUrl, contentMd5, abs_path)
+                print('返回编码:', code, ' 返回信息:', reason)
+                fileStatus = 0
+
+                import time
+                while fileStatus != 2:
+                    time.sleep(2)
+                    fileName, fileDownloadUrl, fileStatus = client.fetchFileByFileId(fileId=fileId)
+                
+                templateId, templateUrl = client.docTemplateCreateUrl(fileId=fileId, 
+                                            docTemplateName=file_name, 
+                                            docTemplateType=1)
+                
+                editUrl = client.docTemplateEditUrl(templateId)
+                print(f'文件 ->{fileName}<- 生成模版ID ->{templateId}<- 编辑地址 ->{editUrl}<-')
+
+    print('DONE!')
