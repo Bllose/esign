@@ -43,6 +43,25 @@ class eqb_sign():
         self.app_key = eqb['appKey']
         self.type = 'POST'
         
+    def downloadContractByFlowId(self, flowId: str) -> list:
+        """
+        通过流水号ID，获取合同下载地址
+        Args:
+            flowId(str): e签宝流水号
+        Returns:
+            downloadInfo(list): 合同下载地址信息
+                - fileId(str): 文件ID
+                - fileName(str): 文件名字
+                - fileUrl(str): 文件下载地址
+        """
+        current_path = f'/v1/signflows/{flowId}/documents'
+        self.establish_head_code(None, current_path, 'GET')
+        response_json = self.getResponseJson(bodyRaw=None, current_path=current_path)
+        if response_json['code'] == 0:
+            return response_json['data']
+        else:
+            logging.error(f'下载流水号{flowId}的合同文件失败，返回报文{response_json}')
+            return []
 
     def fetchUpdateFileUrl(self, contentMd5: str, fileName: str, fileSize: int, 
                            convertToHTML: bool = False) -> tuple:
@@ -222,22 +241,41 @@ class eqb_sign():
             data = response_json['data']
             return data['docTemplateEditUrl']
 
-
-    def fetchSignUrl(self, flowId, mobile):
-        current_path = f'/v3/sign-flow/{flowId}/sign-url'
-        request_dict = {
-                        "needLogin": True,
-                        "urlType": 2,
-                        "operator": {
-                            "psnAccount": mobile
-                        }
+    def fetchSignUrl(self, flowId:str, mobile:str) -> str:
+        """
+        获取签约地址
+        Args:
+            flowId(str): e签宝的流水号
+            mobile(str): 执行人账号。 因为e签宝上通常将个人电话作为账号，所以这里通常是输入手机号
+        Returns:
+            shortUrl(str): 签约地址
+        """
+        return self.getH5Url(mobile, flowId)
+        
+    def getH5Url(self, psnAccount: str, thirdFlowId: str) -> str:
+        """
+        通过账号和流水号获取签约地址
+        Args:
+            psnAccount(str): 用户在e签宝的登录账号，一般为移动电话号码
+            thirdFlowId(str): 当前账号参与的签约流程ID
+        Returns:
+            shortUrl(str): 合同签署流程
+        """
+        req = {
+                    "needLogin": True,
+                    "urlType": 2,
+                    "operator": {
+                        "psnAccount": psnAccount
                     }
-        bodyRaw = json.dumps(request_dict)
+                }
+        current_path = f'/v3/sign-flow/{thirdFlowId}/sign-url'
+        bodyRaw = json.dumps(req, ensure_ascii=False)
         self.establish_head_code(bodyRaw, current_path)
-        response_json = self.getResponseJson(bodyRaw, current_path)
+        response_json = self.getResponseJson(bodyRaw=bodyRaw, current_path=current_path)
         if response_json['code'] == 0:
-            data = response_json['data']
-            return data['shortUrl']
+            return response_json['data']['shortUrl']
+        else:
+            return ''
 
     def getAccountId(self, name, idNumber, mobile) -> str:
         """
@@ -281,8 +319,7 @@ class eqb_sign():
         if response_json['code'] == 0:
             data = response_json['data']
             return data['flowId']
-
-        
+    
     def getSignFlowDetail(self, signFlowId):
         """
         获取签署流程详情
@@ -345,31 +382,6 @@ class eqb_sign():
         else:
             return ''
         
-    def getH5Url(self, psnAccount: str, thirdFlowId: str) -> str:
-        """
-        通过账号和流水号获取签约地址
-        Args:
-            psnAccount(str): 用户在e签宝的登录账号，一般为移动电话号码
-            thirdFlowId(str): 当前账号参与的签约流程ID
-        Returns:
-            shortUrl(str): 合同签署流程
-        """
-        req = {
-                    "needLogin": True,
-                    "urlType": 2,
-                    "operator": {
-                        "psnAccount": psnAccount
-                    }
-                }
-        current_path = f'/v3/sign-flow/{thirdFlowId}/sign-url'
-        bodyRaw = json.dumps(req, ensure_ascii=False)
-        self.establish_head_code(bodyRaw, current_path)
-        response_json = self.getResponseJson(bodyRaw=bodyRaw, current_path=current_path)
-        if response_json['code'] == 0:
-            return response_json['data']['shortUrl']
-        else:
-            return ''
-
     def searchWordsPosition(self, fileId:str, keyword: str) -> list:
         """
         查询单个关键词位置
@@ -539,37 +551,7 @@ def file2md5(absPath: str) -> str:
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    client: eqb_sign = eqb_sign(env='test')
+    client: eqb_sign = eqb_sign(env='pro')
+    response = client.downloadContractByFlowId('d80ab78ce736497e940879c63057bc25')
+    print(response)
 
-    import os
-
-    root_path = r'C:\Users\bllos\Desktop\[4975116715] 中信建设期二次放款系统对接——结算（含退货）模块'
-    for root, dirs, files in os.walk(root_path):
-        for curFileName in files:
-            abs_path = root + os.sep + curFileName
-            file_name = os.path.basename(abs_path)
-            contentMd5=md5_base64_file(abs_path)
-            
-            fileId, fileUploadUrl = client.fetchUpdateFileUrl(contentMd5=contentMd5,
-                                    fileName=file_name,
-                                    fileSize=os.path.getsize(abs_path),
-                                    convertToHTML=True)
-            print(f'文件ID:{fileId}, 上传地址:{fileUploadUrl}')
-            if fileUploadUrl is not None:
-                code, reason = client.uploadFile(fileUploadUrl, contentMd5, abs_path)
-                print('返回编码:', code, ' 返回信息:', reason)
-                fileStatus = 0
-
-                import time
-                while fileStatus != 2:
-                    time.sleep(2)
-                    fileName, fileDownloadUrl, fileStatus = client.fetchFileByFileId(fileId=fileId)
-                
-                templateId, templateUrl = client.docTemplateCreateUrl(fileId=fileId, 
-                                            docTemplateName=file_name, 
-                                            docTemplateType=1)
-                
-                editUrl = client.docTemplateEditUrl(templateId)
-                print(f'文件 ->{fileName}<- 生成模版ID ->{templateId}<- 编辑地址 ->{editUrl}<-')
-
-    print('DONE!')
