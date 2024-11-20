@@ -86,12 +86,9 @@ def getEditUrlByTemplateId(templateIdList:list, env:str = 'test') -> list:
     return resultList
 
 if __name__ == '__main__':
-    templateIdList = ['a8bedae030784de4aa58e955e65ba753', 
-                      'fe618e9647b04f03bcf924a8f5e9c02c', 
-                      '88dba2a4f4c540cbadf9196d555f5924', 
-                      'd616ffcddf8d4642ab17ed41fbf05e98', 
-                      '8f61b4e4058248d69ceb319e6241cea6']
-    print(getEditUrlByTemplateId(templateIdList))
+    templateIdList = ['2f2a98307310495d9fcf9526f4976d51',
+                      '238af153163c4b20bbb1b8f7b447976d']
+    print(getEditUrlByTemplateId(templateIdList, env='pro'))
 
-    newFileDir = r'C:\Users\bllos\Desktop\[4975116715] new 中信建设期二次放款系统对接——结算（含退货）模块'
-    print(getEditUrl4AllFilesUnderTheRoot(newFileDir))
+    # newFileDir = r'C:\Users\bllos\Desktop\[4823119319] 代理商申请TCL设计服务流程线上化 合同部分开发\doc'
+    # print(getEditUrl4AllFilesUnderTheRoot(newFileDir))

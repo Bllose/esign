@@ -18,6 +18,7 @@ import gzip
 import logging
 import json
 import urllib
+import requests
 
 class eqb_sign():
     @bConfig()
@@ -40,6 +41,8 @@ class eqb_sign():
             'Connection': 'keep-alive'
         }
         self.host = eqb['host']
+        self.web_host = eqb['web']['host']
+        self.upload_host = eqb['upload']['host']
         self.app_key = eqb['appKey']
         self.type = 'POST'
         
@@ -240,6 +243,46 @@ class eqb_sign():
         if response_json['code'] == 0:
             data = response_json['data']
             return data['docTemplateEditUrl']
+        
+    def getEncryptionByTemplateId(self, templateId:str) -> str:
+        """
+        获取请求的秘钥
+        Args:
+            templateId(str): 模版ID
+        Returns:
+            encryption(str): 用于网页请求的秘钥
+        """
+        current_path = f'/v3/doc-templates/{templateId}/doc-template-edit-url'
+        request_dict = {
+        }
+        bodyRaw = json.dumps(request_dict)
+        self.establish_head_code(bodyRaw, current_path)
+        response_json = self.getResponseJson(bodyRaw, current_path)
+        if response_json['code'] == 0:
+            docTemplateEditLongUrl = response_json['data']['docTemplateEditLongUrl']
+            from urllib.parse import urlparse, parse_qs
+            parsed_url = urlparse(docTemplateEditLongUrl)
+            query_params = parse_qs(parsed_url.query)
+            return query_params.get('encryption')[0]
+        
+    def getDocTemplateDetails(self, templateId:str, encryption:str):
+        """
+        获取模版的详细信息
+        Args:
+            templateId(str): 模版ID
+            encryption(str): 网页访问秘钥
+        Returns:
+            templateDetail(dict): 模版详情
+        """
+        current_path = f'/webserver/v3/api/doc-templates/{templateId}/detail?encryption={encryption}'
+        response = requests.get('http://' + self.web_host + current_path)
+
+        if response.status_code != 200:
+            logging.warning(f'请求失败, code:{response.status_code} reason:{response.reason}')
+        
+        response_json = json.loads(response.text)
+        return response_json['data']
+
 
     def fetchSignUrl(self, flowId:str, mobile:str) -> str:
         """
@@ -373,6 +416,10 @@ class eqb_sign():
     def createByFile(self, req: str) -> str:
         """
         （精简版）基于文件发起签署
+        Args:
+            req(str): 请求报文
+        Returns:
+            signFlowId(str): e签宝签约流水号
         """
         current_path = r'/v3/sign-flow/create-by-file'
         self.establish_head_code(req, current_path)
@@ -427,12 +474,28 @@ class eqb_sign():
         else:
             return []
         
-    def getResponseJson(self, bodyRaw, current_path) -> json:
+    def getResponseJson(self, bodyRaw, current_path, type:str = 'NOMAL') -> json:
         """
-        通过请求地址和请求参数
-        获取返回报文
+        发送请求，并解析返回结果
+        Args:
+            bodyRaw(str): 请求报文内容， GET，或者没有请求报文时传 None
+            current_path(str): 当前请求路径
+            type(str): 当前请求类型
+                - NOMAL
+                - UPLOAD
+                - WEB
+        Returns:
+            response_json(json): 返回报文
         """
-        conn = http.client.HTTPSConnection(self.host)
+        match(type):
+            case 'WEB':
+                host = self.web_host
+            case 'UPLOAD':
+                host = self.upload_host
+            case 'NOMAL':
+                host = self.host
+                
+        conn = http.client.HTTPSConnection(host)
         if bodyRaw is not None:
             bodyRaw = bodyRaw.encode("utf-8").decode("latin1")
         conn.request(self.type, current_path, bodyRaw, self.header)
@@ -441,13 +504,13 @@ class eqb_sign():
         match response.code:
             case 403:
                 logging.warning(f'拒绝访问!')
-                return json.loads({'code': 999})
+                return json.loads(json.dumps({'code': 999}))
             case 401:
                 logging.warning('未授权!')
-                return json.loads({'code': 999})
+                return json.loads(json.dumps({'code': 999}))
             case 404:
-                logging.warning(f'请求路径不存在!{current_path}')
-                return json.loads({'code': 999})
+                logging.warning(f'请求路径不存在!{host}{current_path}')
+                return json.loads(json.dumps({'code': 999}))
             # case _:
                 # logging.info(f'返回报文:{response}')
 
@@ -551,7 +614,9 @@ def file2md5(absPath: str) -> str:
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    client: eqb_sign = eqb_sign(env='pro')
-    response = client.downloadContractByFlowId('d80ab78ce736497e940879c63057bc25')
-    print(response)
+    client: eqb_sign = eqb_sign(env='test')
+    templateId = 'eecc2d735fa04697bad4fb3aa9e46b87'
+    encryption = client.getEncryptionByTemplateId(templateId)
+    response_json = client.getDocTemplateDetails(templateId, encryption)
+    print(response_json)
 
