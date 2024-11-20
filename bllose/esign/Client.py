@@ -26,7 +26,9 @@ class eqb_sign():
         # 通过配置加载工具加载的配置内容
         # 后续逻辑直接使用保存下载的config对象, 获取对应的配置项
         self.config = config
-        self.env = env
+        self.env = env.lower()
+        if env.lower() != 'pro' and env.lower() != 'test':
+            self.env = 'test'
 
         # 通过环境参数加载当前e签宝执行环境
         eqb = self.config['eqb'][env]
@@ -450,14 +452,36 @@ class eqb_sign():
         """
         通过社会统一信用代码
         获取项目公司在e签宝上的相关信息
-        TODO 当前401，待解决
+        Args:
+            orgIdCard:str 社会统一信用代码
+        Returns:
+            data:dict 项目公司基本信息字典
+            - orgId:str 项目公司在e签宝中的ID号
         """
-        query_string = urllib.parse.urlencode({'orgIDCardType': 'CRED_ORG_USCC', 'orgIDCardNum': orgIdCard})
-        current_path = f'/v3/organizations/identity-info?{query_string}'
+        current_path = f'/v3/organizations/identity-info?orgIDCardNum={orgIdCard}&orgIDCardType=CRED_ORG_USCC'
         self.establish_head_code(None, current_path, 'GET')
         response_json = self.getResponseJson(bodyRaw=None, current_path=current_path)
         if response_json['code'] == 0:
-            return response_json
+            return response_json['data']
+        else:
+            return {}
+        
+    def getSealsInfo(self, orgId:str) -> dict:
+        """
+        通过orgId获取该公司下的印章ID
+        Args:
+            orgId: str 企业在e签宝中记录的ID
+        Returns:
+            sealsInfo: dict 项目公司的印章相关信息
+        """
+        current_path = f'/v1/organizations/{orgId}/seals'
+        self.establish_head_code(None, current_path, 'GET')
+        response_json = self.getResponseJson(bodyRaw=None, current_path=current_path)
+        if response_json['code'] == 0:
+            return response_json['data']
+        else:
+            return {}
+
         
     def fetchSealInfoByOrgId(self, orgId: str) -> list:
         """
@@ -615,8 +639,9 @@ def file2md5(absPath: str) -> str:
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     client: eqb_sign = eqb_sign(env='test')
-    templateId = 'eecc2d735fa04697bad4fb3aa9e46b87'
-    encryption = client.getEncryptionByTemplateId(templateId)
-    response_json = client.getDocTemplateDetails(templateId, encryption)
-    print(response_json)
+    client.getOrganizationInfo('91440300MA5H9NX89R')
+    # templateId = 'eecc2d735fa04697bad4fb3aa9e46b87'
+    # encryption = client.getEncryptionByTemplateId(templateId)
+    # response_json = client.getDocTemplateDetails(templateId, encryption)
+    # print(response_json)
 

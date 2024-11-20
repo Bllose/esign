@@ -11,12 +11,16 @@ from bllose.esign.sign_flow_vos.signFlowByFile.signers.SignConfig import SignCon
 from bllose.esign.sign_flow_vos.signFlowByFile.signers.SignFields import SignField, NormalSignFieldConfig, SignFieldPosition
 from bllose.esign.sign_flow_vos.signFlowByFile.signers.OrgSignerInfo import OrgSignerInfo, OrgInfo, PsnInfo, TransactorInfo
 
-"""
-通过已经生成号的文件ID
-生成一个新的签署地址
-"""
+
+
 @bConfig()
 def task(notice:bool = False, env:str = 'test', config:dict = {}) -> tuple:
+    
+    """
+    通过已经生成号的文件ID
+    生成一个新的签署地址
+    由于项目中没有针对这种情况的处理， 故需要手动发起一次新的合同签署流程
+    """
     if env.lower() == 'pro':
         env = 'pro'
     else :
