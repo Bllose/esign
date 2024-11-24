@@ -86,9 +86,8 @@ def getEditUrlByTemplateId(templateIdList:list, env:str = 'test') -> list:
     return resultList
 
 if __name__ == '__main__':
-    templateIdList = ['2f2a98307310495d9fcf9526f4976d51',
-                      '238af153163c4b20bbb1b8f7b447976d']
-    print(getEditUrlByTemplateId(templateIdList, env='pro'))
+    templateIdList = ['88dba2a4f4c540cbadf9196d555f5924']
+    print(getEditUrlByTemplateId(templateIdList, env='test'))
 
     # newFileDir = r'C:\Users\bllos\Desktop\[4823119319] 代理商申请TCL设计服务流程线上化 合同部分开发\doc'
     # print(getEditUrl4AllFilesUnderTheRoot(newFileDir))
