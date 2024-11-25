@@ -21,8 +21,7 @@ def getTheNewSignUrl(name:str, mobile:str, creditId:str, flowId:str, env:str = '
     return shortUrl
 
 if __name__ == '__main__':
-    originList = ['胡树高,511525198504300915,19533118964,70eaa740d53146ce842944ae86ce4905,GF231226111243000343',
-                  '农素美,452626198712063607,15077631518,36574372c3754353a859435f74cd12e3,GF240312142947179627']
+    originList = []
     for info in originList:
         infoArray = info.split(",")
         shortUrl = getTheNewSignUrl(infoArray[0], infoArray[2], infoArray[1], infoArray[3], env='pro')
