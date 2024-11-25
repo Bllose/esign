@@ -296,21 +296,45 @@ class eqb_sign():
             shortUrl(str): 签约地址
         """
         return self.getH5Url(mobile, flowId)
-        
-    def getH5Url(self, psnAccount: str, thirdFlowId: str) -> str:
+    
+    def getExeUrl(self, accountId:str, thirdFlowId: str) -> str:
         """
-        通过账号和流水号获取签约地址
+        V1通过账号ID和流水号获取签约地址
         Args:
-            psnAccount(str): 用户在e签宝的登录账号，一般为移动电话号码
+            accountId(str): 签署操作人账号ID（个人账号ID）
+            thirdFlowId(str): 当前账号参与的签约流程ID
+        Return:
+            shortUrl(str): 合同签署流程
+        """
+        current_path = f'/v1/signflows/{thirdFlowId}/executeUrl?accountId={accountId}'
+        self.establish_head_code(None, current_path, 'GET')
+        response_json = self.getResponseJson(bodyRaw=None, current_path=current_path)
+        if response_json['code'] == 0:
+            return response_json['data']['shortUrl']
+        else:
+            logging.error(f'获取签约地址失败，返回信息{response_json}')
+            return ''
+        
+    def getH5Url(self, psnAccount: str, psnId:str, thirdFlowId: str) -> str:
+        """
+        V3通过账号和流水号获取签约地址
+        Args:
+            psnAccount(str): 用户在e签宝的登录账号，一般为移动电话号码/邮箱账号。 二选一
+            psnId(str): 签署操作人账号ID（个人账号ID）。二选一
             thirdFlowId(str): 当前账号参与的签约流程ID
         Returns:
             shortUrl(str): 合同签署流程
         """
+        if psnId is not None and len(psnId) > 1:
+            psnAccount = None
+        else:
+            psnId = None
         req = {
                     "needLogin": True,
                     "urlType": 2,
                     "operator": {
-                        "psnAccount": psnAccount
+                        "psnAccount": psnAccount,
+                        "psnId": psnId
                     }
                 }
         current_path = f'/v3/sign-flow/{thirdFlowId}/sign-url'
@@ -320,6 +344,7 @@ class eqb_sign():
         if response_json['code'] == 0:
             return response_json['data']['shortUrl']
         else:
+            logging.error(f'获取签约地址失败，返回信息{response_json}')
             return ''
 
     def getAccountId(self, name, idNumber, mobile) -> str:
@@ -608,6 +633,8 @@ def md5_base64_encode(body_raw):
     """
     将纯字符转化为MD5，然后再将MD5转化为Base64编码
     """
+    if body_raw == None:
+        body_raw = ''
     # 计算 MD5 哈希  
     md5_hash = hashlib.md5(body_raw.encode('utf-8')).digest()  
     # 将 MD5 哈希的字节串进行 Base64 编码  
