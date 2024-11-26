@@ -15,13 +15,19 @@ def getTheNewSignUrl(name:str, mobile:str, creditId:str, flowId:str, env:str = '
     """
 
     client = eqb_sign(env)
+    # 尝试使用三要素创建账户并返回账户ID，若存在则返回已经存在的账户ID
     accountId = client.getAccountId(name=name, idNumber=creditId, mobile=mobile)
+    # 对目标账户ID更新用户三要素信息
+    updatedData = client.updateAccountsByid(accountId=accountId, name=name, mobile=mobile)
+    accountId = updatedData['accountId']
+    # 通过最新的账户id结合签约流水号获取到签约地址
     shortUrl = client.getExeUrl(accountId=accountId, thirdFlowId=flowId)
     logging.info(flowId, mobile, name, accountId, ' -> ', shortUrl)
     return shortUrl
 
 if __name__ == '__main__':
-    originList = []
+    logging.basicConfig(level=logging.INFO)
+    originList = ['胡树高,511525198504300915,19533118964,70eaa740d53146ce842944ae86ce4905,GF231226111243000343']
     for info in originList:
         infoArray = info.split(",")
         shortUrl = getTheNewSignUrl(infoArray[0], infoArray[2], infoArray[1], infoArray[3], env='pro')

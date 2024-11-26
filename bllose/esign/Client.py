@@ -375,6 +375,36 @@ class eqb_sign():
             data = response_json['data']
             return data['accountId']
         
+    def updateAccountsByid(self, accountId:str, name:str, mobile:str) :
+        """
+        通过账号ID，更新人名和电话
+        Args:
+            accountId(str): 账号ID
+            name(str): 签署人/执行人名称
+            mobile(str): 电话号码/e签宝账号
+        Retruns:
+            data(dict): 更新结果
+                - mobile(str): 最新电话
+                - name(str): 最新姓名
+                - accountId(str): 当前账号id
+                - idType(str): 证件类型。'CRED_PSN_CH_IDCARD' 中国身份证号码
+                - idNumber(str): 证件号码
+        """
+        current_path=f'/v1/accounts/{accountId}'
+        bodyRaw = {
+            "mobile": mobile,
+            "name": name
+        }
+        bodyStr = json.dumps(bodyRaw)
+        self.establish_head_code(bodyStr, current_path, 'PUT')
+        response_json = self.getResponseJson(bodyStr, current_path)
+        if response_json['code'] == 0:
+            return response_json['data']
+        else:
+            logging.warning(f'更新用户信息失败，返回报文: {response_json}')
+            return {}
+
+        
     def createFlowOneStep(self, bodyRaw: str) -> str:
         """
         e签宝，一步发起签约流程
@@ -589,6 +619,9 @@ class eqb_sign():
             self.type = 'POST'
         elif method == 'GET':
             self.type = 'GET'
+        elif method == 'PUT':
+            contentMd5 = md5_base64_encode(bodyRaw)
+            self.type = 'PUT'
         else:
             logging.error(f"不支持的请求类型: {method}")
         self.header['Content-MD5'] = contentMd5
@@ -629,12 +662,15 @@ def hmacSHA_base64_encode(app_key, before_signature):
     # 返回十六进制格式的哈希值  
     return base64.b64encode(signature.digest()).decode('utf-8')
 
-def md5_base64_encode(body_raw):
+def md5_base64_encode(body_raw:str):
     """
     将纯字符转化为MD5，然后再将MD5转化为Base64编码
     """
     if body_raw == None:
         body_raw = ''
+    elif not isinstance(body_raw, str):
+        logging.error('请求报文必须转化为字符串!')
+        raise Exception("参数异常")
     # 计算 MD5 哈希  
     md5_hash = hashlib.md5(body_raw.encode('utf-8')).digest()  
     # 将 MD5 哈希的字节串进行 Base64 编码  
