@@ -97,7 +97,7 @@ class eqb_sign():
         if response_json['code'] == 0:
             return str(response_json['data']['fileId']), str(response_json['data']['fileUploadUrl'])
         else:
-            logging.warning(f'获取上传文件地址失败,返回报文: {json.dumps(response_json)}')
+            logging.warning(f'获取上传文件地址失败,返回报文: {json.dumps(response_json, ensure_ascii=False)}')
             return '', ''
 
     def uploadFile(self, putUrl: str, md5: str, absPath: str):

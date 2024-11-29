@@ -40,7 +40,7 @@ def getEditUrl4AllFilesUnderTheRoot(root_path:str, env:str = 'test') -> list:
                                     fileSize=os.path.getsize(abs_path),
                                     convertToHTML=True)
             logging.debug(f'文件ID:{fileId}, 上传地址:{fileUploadUrl}')
-            if fileUploadUrl is not None:
+            if fileUploadUrl is not None and len(fileUploadUrl) > 1:
                 # 2. 通过上传地址，真正将文件上传至e签宝
                 code, reason = client.uploadFile(fileUploadUrl, contentMd5, abs_path)
                 logging.debug('返回编码:', code, ' 返回信息:', reason)
@@ -59,7 +59,7 @@ def getEditUrl4AllFilesUnderTheRoot(root_path:str, env:str = 'test') -> list:
                 # 4. 通过模版ID获取编辑页面的地址
                 editUrl = client.docTemplateEditUrl(templateId)
                 logging.debug(f'文件 ->{fileName}<- 生成模版ID ->{templateId}<- 编辑地址 ->{editUrl}<-')
-                resultList.append({'fileName': fileName, 'templateId': templateId, 'editUrl': editUrl})
+                resultList.append({'fileName': fileName, 'templateId': templateId, 'editUrl': editUrl, 'fileId': fileId})
     return resultList
 
 
@@ -86,8 +86,14 @@ def getEditUrlByTemplateId(templateIdList:list, env:str = 'test') -> list:
     return resultList
 
 if __name__ == '__main__':
-    # templateIdList = ['8f61b4e4058248d69ceb319e6241cea6']
-    # print(getEditUrlByTemplateId(templateIdList, env='test'))
+    templateIdList = ['d616ffcddf8d4642ab17ed41fbf05e98',
+                      '88dba2a4f4c540cbadf9196d555f5924',
+                      'a8bedae030784de4aa58e955e65ba753',
+                      'f601ec924e5c4e3ab5af86ce9e614061',
+                      '8f61b4e4058248d69ceb319e6241cea6',
+                      'eecc2d735fa04697bad4fb3aa9e46b87',
+                      '4a4bbd60d8354b3cbedcd23ce7c9ef6d']
+    print(getEditUrlByTemplateId(templateIdList, env='test'))
 
-    newFileDir = r'C:\Users\bllos\Desktop\[4823119319] 代理商申请TCL设计服务流程线上化 合同部分开发\doc'
-    print(getEditUrl4AllFilesUnderTheRoot(newFileDir))
+    # newFileDir = r'C:\Users\bllos\Desktop\合同文件集合\[4975085045] 太平石化建设期二期系统对接联调合同\words'
+    # print(getEditUrl4AllFilesUnderTheRoot(newFileDir))
