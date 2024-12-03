@@ -73,6 +73,28 @@ class eqb_cmd(cmd2.Cmd):
         post_handler(fileDownloadUrl, self.local_save_path)
 
 
+    def do_pro(self, args):
+        """
+        切换为生产环境
+        """
+        if self.env == 'pro':
+            self.console.print('当前环境就是生产环境')
+        else:
+            self.console.print(f'环境切换 [strike white]{self.env}[/strike white] [blink2 red]->[/blink2 red] [bold green]pro[/bold green]')
+            self.env = 'pro'
+        set_title("e签宝 -> 生产环境")
+
+    def do_test(self, args):
+        """
+        切换为测试环境
+        """
+        if self.env != 'pro':
+            self.console.print('当前环境就是测试环境')
+        else:
+            self.console.print(f'环境切换 [strike white]{self.env}[/strike white] [blink2 red]->[/blink2 red] [bold green]test[/bold green]')
+            self.env = 'test'
+        set_title("e签宝 -> 测试环境")
+
     change_env_parser = cmd2.Cmd2ArgumentParser()
     change_env_parser.add_argument('params', nargs='*', help='显示或切换环境 pro; test')
     @cmd2.with_argparser(change_env_parser)

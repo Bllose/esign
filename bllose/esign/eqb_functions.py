@@ -15,11 +15,11 @@ def template_function(env, templateId) -> str:
     """
     client = eqb_sign(EqbEnum.of(env).value)
     shortUrl = client.docTemplateEditUrl(templateId)
-    post_handler(shortUrl)
+    post_handler(shortUrl=shortUrl)
     return shortUrl
 
 
-def post_handler(shortUrl:str, savedPath:str) -> None:
+def post_handler(shortUrl:str, savedPath:str = '') -> None:
     """
     后续处理，包括系统调用相关
     Args:
