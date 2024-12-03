@@ -7,6 +7,7 @@ from bllose.esign.esign_enums.env_enum import EqbEnum
 from rich.console import Console
 from rich.text import Text
 from rich.panel import Panel
+from rich.style import Style
 from bllose.esign.eqb_functions import template_function, set_title, post_handler
 
 class eqb_cmd(cmd2.Cmd):
@@ -55,6 +56,7 @@ class eqb_cmd(cmd2.Cmd):
         # 具体执行的逻辑
         
         # 渲染结果输出
+        urlStyle = Style(color="#0000FF", underline=True)
         result = Text()
         result.append("文件名: ", style="bold yellow")
         result.append(fileName, style="italic green")
@@ -63,7 +65,7 @@ class eqb_cmd(cmd2.Cmd):
         result.append(FileStatus.from_code(fileStatus).msg, style="italic green")
         result.append("\n")
         result.append("下载地址: ", style="bold yellow")
-        result.append(fileDownloadUrl)
+        result.append(fileDownloadUrl, style=urlStyle)
         panel = Panel(result, title="执行结果")
         self.console.print(panel)
         # 渲染结果输出
