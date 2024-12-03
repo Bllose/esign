@@ -5,6 +5,8 @@ from bllose.esign.Client import eqb_sign
 from bllose.esign.esign_enums.file_status import FileStatus
 from bllose.esign.esign_enums.env_enum import EqbEnum
 from rich.console import Console
+from rich.text import Text
+from rich.panel import Panel
 from bllose.esign.eqb_functions import template_function, set_title, post_handler
 
 class eqb_cmd(cmd2.Cmd):
@@ -51,7 +53,21 @@ class eqb_cmd(cmd2.Cmd):
         client = eqb_sign(self.env)
         fileName, fileDownloadUrl, fileStatus = client.fetchFileByFileId(fileId)
         # 具体执行的逻辑
-        self.console.print(f'文件名:{fileName} \r\n文件状态:{FileStatus.from_code(fileStatus).msg} \r\n下载地址:{fileDownloadUrl}', style='green')
+        
+        # 渲染结果输出
+        result = Text()
+        result.append("文件名: ", style="bold yellow")
+        result.append(fileName, style="italic green")
+        result.append("\n")
+        result.append("文件状态: ", style="bold yellow")
+        result.append(FileStatus.from_code(fileStatus).msg, style="italic green")
+        result.append("\n")
+        result.append("下载地址: ", style="bold yellow")
+        result.append(fileDownloadUrl)
+        panel = Panel(result, title="执行结果")
+        self.console.print(panel)
+        # 渲染结果输出
+
         post_handler(fileDownloadUrl, self.local_save_path)
 
 
