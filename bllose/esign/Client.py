@@ -245,6 +245,9 @@ class eqb_sign():
         if response_json['code'] == 0:
             data = response_json['data']
             return data['docTemplateEditUrl']
+        else:
+            logging.error(f'获取模版{templateId}编辑地址失败,返回报文:{response_json}')
+            return ''
         
     def getEncryptionByTemplateId(self, templateId:str) -> str:
         """

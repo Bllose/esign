@@ -3,9 +3,9 @@ import logging
 from bllose.tasks.commons.GetSignUrlAfterMobileChanged import getTheNewSignUrl
 from bllose.esign.Client import eqb_sign
 from bllose.esign.esign_enums.file_status import FileStatus
+from bllose.esign.esign_enums.env_enum import EqbEnum
 from rich.console import Console
-import ctypes
-import sys
+from bllose.esign.eqb_functions import template_function, set_title, post_handler
 
 class eqb_cmd(cmd2.Cmd):
     intro = "e签宝相关功能"
@@ -15,18 +15,9 @@ class eqb_cmd(cmd2.Cmd):
         super().__init__()
         self.console = Console()
         self.env = 'test'
-        self.set_title("e签宝 -> 测试环境")
-        self.download_path = '/temp/download'
+        set_title("e签宝 -> 测试环境")
+        self.local_save_path = '/temp/download'
     
-    def set_title(self, title):
-        """Set the terminal window title."""
-        if sys.platform.startswith('win'):
-            # 在 Windows 上使用 ctypes 设置控制台窗口标题
-            ctypes.windll.kernel32.SetConsoleTitleW(title)
-        else:
-            # 在其他平台上使用 ANSI 转义序列
-            print(f"\033]0;{title}\007", end='', flush=True)
-
     template_edit_url_parser = cmd2.Cmd2ArgumentParser()
     template_edit_url_parser.add_argument('params', nargs='*', help='fileId, 文件ID, 比如：87f579e3648146cf825fc45f45bcf169')
     @cmd2.with_argparser(template_edit_url_parser)
@@ -36,24 +27,19 @@ class eqb_cmd(cmd2.Cmd):
             self.console.print('请输入一个模版ID!', style = 'reverse')
             return
         templateId = params[0]
-        client = eqb_sign(self.env)
-        shortUrl = client.docTemplateEditUrl(templateId)
-        if shortUrl is None or len(shortUrl) < 1:
-            self.console.print('获取模版编辑地址失败!', style = 'reverse')
-        else:
+        # 具体执行的逻辑
+        shortUrl = template_function(env=self.env, templateId= templateId)
+        # 具体执行的逻辑
+        if shortUrl.startswith('http'):
             self.console.print(f'[underline blue]{shortUrl}[/underline blue]')
-            if sys.platform.startswith('win'):
-                # 使用 ctypes 调用 ShellExecute
-                shell32 = ctypes.windll.shell32
-                result = shell32.ShellExecuteW(None, "open", shortUrl, '', None, 1)
-                if result <= 32:
-                    logging.error("Failed to open the download dialog. Error code: {}".format(result))
+        else:
+            self.console.print('获取模版编辑地址失败!', style = 'reverse')
 
     file_download_parser = cmd2.Cmd2ArgumentParser()
     file_download_parser.add_argument('params', nargs='*', help='fileId, 文件ID, 比如：87f579e3648146cf825fc45f45bcf169')
     @cmd2.with_argparser(file_download_parser)
     def do_fileId(self, args):
-        """fi
+        """
         通过文件ID（fileId），获取其下载地址和状态
         """
         params = args.params
@@ -61,15 +47,12 @@ class eqb_cmd(cmd2.Cmd):
             self.console.print(f'参数只能且必须是一个文件ID', style='red')
             return
         fileId = params[0]
+        # 具体执行的逻辑
         client = eqb_sign(self.env)
         fileName, fileDownloadUrl, fileStatus = client.fetchFileByFileId(fileId)
+        # 具体执行的逻辑
         self.console.print(f'文件名:{fileName} \r\n文件状态:{FileStatus.from_code(fileStatus).msg} \r\n下载地址:{fileDownloadUrl}', style='green')
-        if sys.platform.startswith('win'):
-            # 使用 ctypes 调用 ShellExecute
-            shell32 = ctypes.windll.shell32
-            result = shell32.ShellExecuteW(None, "open", fileDownloadUrl, f"/saveas /f:{self.download_path}", None, 1)
-            if result <= 32:
-                logging.error("Failed to open the download dialog. Error code: {}".format(result))
+        post_handler(fileDownloadUrl, self.local_save_path)
 
 
     change_env_parser = cmd2.Cmd2ArgumentParser()
@@ -83,17 +66,16 @@ class eqb_cmd(cmd2.Cmd):
         if not params:
             self.console.print(f'当前环境[bold on_yellow]{self.env}[/bold on_yellow]')
             return
-        targetEnv = params[0]
-        target = 'pro' if targetEnv.lower() == 'pro' else 'test'
+        target = EqbEnum.of(params[0]).value
         if target == self.env:
             self.console.print(f'维持原环境[dim cyan]{self.env}[/dim cyan]')
         else:
             self.console.print(f'环境切换 [strike white]{self.env}[/strike white] [blink2 red]->[/blink2 red] [bold green]{target}[/bold green]')
             self.env = target
         if self.env == 'pro':
-            self.set_title("e签宝 -> 生产环境")
+            set_title("e签宝 -> 生产环境")
         else:
-            self.set_title("e签宝 -> 测试环境")
+            set_title("e签宝 -> 测试环境")
         
 
     load_parser = cmd2.Cmd2ArgumentParser()
