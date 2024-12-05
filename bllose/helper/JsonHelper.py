@@ -11,3 +11,7 @@ def deep_clean_null(target) -> object:
     else :
         return target
     
+if __name__ == '__main__':
+    target = {'keya':'valuea', 'keyb':None}
+
+    print(json.dumps(deep_clean_null(target=target), ensure_ascii=False))

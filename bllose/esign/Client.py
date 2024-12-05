@@ -318,7 +318,9 @@ class eqb_sign():
             logging.error(f'获取签约地址失败，返回信息{response_json}')
             return ''
         
-    def getH5Url(self, psnAccount: str, psnId:str, thirdFlowId: str) -> str:
+    def getH5Url(self, thirdFlowId: str, 
+                 psnAccount: str = None, 
+                 psnId:str = None) -> str:
         """
         V3通过账号和流水号获取签约地址
         Args:
@@ -328,6 +330,8 @@ class eqb_sign():
         Returns:
             shortUrl(str): 合同签署流程
         """
+        if psnAccount is None and psnId is None:
+            raise ValueError('手机号码和操作人账号ID不能同时为空')
         if psnId is not None and len(psnId) > 1:
             psnAccount = None
         else:
@@ -473,15 +477,21 @@ class eqb_sign():
             data = response_json['data']
             return data['fileId'], data['fileDownloadUrl']
         
-    def createByFile(self, req: str) -> str:
+    def createByFile(self, req) -> str:
         """
         （精简版）基于文件发起签署
         Args:
-            req(str): 请求报文
+            req: 请求报文。可以是str, dict, list等
         Returns:
             signFlowId(str): e签宝签约流水号
         """
         current_path = r'/v3/sign-flow/create-by-file'
+        if not isinstance(req, str):
+            if isinstance(req, dict) or isinstance(req, list):
+                req = json.dumps(req)
+            else:
+                logging.error(f'不支持请求参数类型{type(req)},请输入str, dict, list或json')
+                raise ValueError('请求参数不合法')
         self.establish_head_code(req, current_path)
         response_json = self.getResponseJson(bodyRaw=req, current_path=current_path)
         if response_json['code'] == 0:
