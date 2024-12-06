@@ -124,10 +124,10 @@ def contract_maker(fileId, fileName, orgName, orgIDCardNum, psnName, psnMobileNo
 if __name__ == '__main__':
     fileId = 'e0fc196c9c74467da413a21151d7c75c'
     fileName = '户用光伏业务经销协议（2025版）'
-    orgName = 'esigntest惠州TCL光伏科技有限公司PAAW'
-    orgIDCardNum = '910000821154730022'
-    psnName = ''
-    psnMobileNo = ''
+    orgName = 'esigntest惠州TCL光伏科技有限公司PAAX'
+    orgIDCardNum = '910000821154730023'
+    psnName = '史一荣'
+    psnMobileNo = '18820234326'
 
     signFlowId, shortUrl, psnName, psnMobileNo = contract_maker(fileId, fileName, orgName, orgIDCardNum, psnName, psnMobileNo)
     logging.warning('%s %s %s %s', signFlowId, shortUrl, psnName, psnMobileNo)

@@ -5,7 +5,7 @@ from bllose.esign.Client import eqb_sign
 from bllose.esign.Client import md5_base64_file
 
 
-def getEditUrl4AllFilesUnderTheRoot(root_path:str, env:str = 'test') -> list:
+def getEditUrl4AllFilesUnderTheRoot(root_path:str, env:str = 'test', convertToHTML:bool = True) -> list:
     """
     通过合同文件上传到e签宝，获取支持动态模版的html编辑页面
     1. 本地文件信息通知e签宝，获取上传地址
@@ -16,6 +16,7 @@ def getEditUrl4AllFilesUnderTheRoot(root_path:str, env:str = 'test') -> list:
     Args:
         root_path(str): 需要处理的文件所在目录
         env(str): 处理环境，默认测试环境 test
+        convertToHTML(bool): 是否转化为html
     Return:
         editInfoList(list): 返回编辑地址列表
             - fileName(str): 文件名字
@@ -32,13 +33,17 @@ def getEditUrl4AllFilesUnderTheRoot(root_path:str, env:str = 'test') -> list:
         for curFileName in files:
             abs_path = root + os.sep + curFileName
             file_name = os.path.basename(abs_path)
+            if file_name.startswith('~'):
+                # 临时文件，直接跳过
+                continue
+
             contentMd5=md5_base64_file(abs_path)
             
             # 1. 本地文件信息通知e签宝，获取上传地址
             fileId, fileUploadUrl = client.fetchUpdateFileUrl(contentMd5=contentMd5,
                                     fileName=file_name,
                                     fileSize=os.path.getsize(abs_path),
-                                    convertToHTML=True)
+                                    convertToHTML=convertToHTML)
             logging.debug(f'文件ID:{fileId}, 上传地址:{fileUploadUrl}')
             if fileUploadUrl is not None and len(fileUploadUrl) > 1:
                 # 2. 通过上传地址，真正将文件上传至e签宝
@@ -51,15 +56,19 @@ def getEditUrl4AllFilesUnderTheRoot(root_path:str, env:str = 'test') -> list:
                     # 确认文件已经处理完毕，如果没有完成则循环确认
                     fileName, fileDownloadUrl, fileStatus = client.fetchFileByFileId(fileId=fileId)
                 
-                # 3. 通过上传并转化为html的合同文件ID，获取对应的模版ID
-                templateId, templateUrl = client.docTemplateCreateUrl(fileId=fileId, 
-                                            docTemplateName=file_name, 
-                                            docTemplateType=1)
-                
-                # 4. 通过模版ID获取编辑页面的地址
-                editUrl = client.docTemplateEditUrl(templateId)
-                logging.debug(f'文件 ->{fileName}<- 生成模版ID ->{templateId}<- 编辑地址 ->{editUrl}<-')
-                resultList.append({'fileName': fileName, 'templateId': templateId, 'editUrl': editUrl, 'fileId': fileId})
+                if convertToHTML:
+                    # 只有当
+                    # 3. 通过上传并转化为html的合同文件ID，获取对应的模版ID
+                    templateId, templateUrl = client.docTemplateCreateUrl(fileId=fileId, 
+                                                docTemplateName=file_name, 
+                                                docTemplateType=1)
+                    # 4. 通过模版ID获取编辑页面的地址
+                    editUrl = client.docTemplateEditUrl(templateId)
+                    logging.debug(f'文件 ->{fileName}<- 生成模版ID ->{templateId}<- 编辑地址 ->{editUrl}<-')
+                    resultList.append({'fileName': fileName, 'templateId': templateId, 'editUrl': editUrl, 'fileId': fileId})
+                else:
+                    resultList.append({'fileName': fileName, 'fileId': fileId})
+
     return resultList
 
 
@@ -86,14 +95,14 @@ def getEditUrlByTemplateId(templateIdList:list, env:str = 'test') -> list:
     return resultList
 
 if __name__ == '__main__':
-    templateIdList = ['d616ffcddf8d4642ab17ed41fbf05e98',
-                      '88dba2a4f4c540cbadf9196d555f5924',
-                      'a8bedae030784de4aa58e955e65ba753',
-                      'f601ec924e5c4e3ab5af86ce9e614061',
-                      '8f61b4e4058248d69ceb319e6241cea6',
-                      'eecc2d735fa04697bad4fb3aa9e46b87',
-                      '4a4bbd60d8354b3cbedcd23ce7c9ef6d']
-    print(getEditUrlByTemplateId(templateIdList, env='test'))
+    # templateIdList = ['d616ffcddf8d4642ab17ed41fbf05e98',
+    #                   '88dba2a4f4c540cbadf9196d555f5924',
+    #                   'a8bedae030784de4aa58e955e65ba753',
+    #                   'f601ec924e5c4e3ab5af86ce9e614061',
+    #                   '8f61b4e4058248d69ceb319e6241cea6',
+    #                   'eecc2d735fa04697bad4fb3aa9e46b87',
+    #                   '4a4bbd60d8354b3cbedcd23ce7c9ef6d']
+    # print(getEditUrlByTemplateId(templateIdList, env='test'))
 
-    # newFileDir = r'C:\Users\bllos\Desktop\合同文件集合\[4975085045] 太平石化建设期二期系统对接联调合同\words'
-    # print(getEditUrl4AllFilesUnderTheRoot(newFileDir))
+    newFileDir = r'C:\Users\bllos\Desktop\temp'
+    print(getEditUrl4AllFilesUnderTheRoot(root_path=newFileDir, convertToHTML=False))
