@@ -20,6 +20,54 @@ class eqb_cmd(cmd2.Cmd):
         self.env = 'test'
         set_title("e签宝 -> 测试环境")
         self.local_save_path = '/temp/download'
+
+        # 定义别名
+        self.aliases['flowid'] = 'flowId'
+        self.aliases['fileid'] = 'fileId'
+
+    person_parser = cmd2.Cmd2ArgumentParser()
+    person_parser.add_argument('params', nargs='*', help='身份证')
+    @cmd2.with_argparser(person_parser)
+    def do_person(self, args):
+        params = args.params
+        if not params:
+            self.console.print('请输入一个身份证!', style = 'reverse')
+            return
+        creditId = params[0]
+        client = eqb_sign(env=self.env)
+        result_v3 = client.person_info_v3(psnIDCardNum = creditId)
+        
+        result_v1 = client.person_info_v1(thirdPartyUserId=creditId)
+        self.console.print(f'v3: {result_v3['psnId']}\r\nv1: {result_v1['accountId']}')
+
+    
+    flowid_parser = cmd2.Cmd2ArgumentParser()
+    flowid_parser.add_argument('params', nargs='*', help='e签宝签约流水号')
+    @cmd2.with_argparser(flowid_parser)
+    def do_flowId(self, args):
+        """
+        获取第三方流水对应合同下载地址
+        """
+        params = args.params
+        if not params:
+            self.console.print('请输入一个模版ID!', style = 'reverse')
+            return
+        flowId = params[0]
+        client = eqb_sign(env=self.env)
+        response:list = client.downloadContractByFlowId(flowId)
+        if len(response) == 0:
+            self.console.print('没有文件', style='red')
+        for doc in response:
+            urlStyle = Style(color="#0000FF", underline=True)
+            result = Text()
+            result.append("文件ID: ", style="bold yellow")
+            result.append(doc['fileId'], style="italic green")
+            result.append("\n")
+            result.append("下载地址: ", style="bold yellow")
+            result.append(doc['fileUrl'], style=urlStyle)
+            panel = Panel(result, title=doc['fileName'])
+            self.console.print(panel)
+
     
     template_edit_url_parser = cmd2.Cmd2ArgumentParser()
     template_edit_url_parser.add_argument('params', nargs='*', help='fileId, 文件ID, 比如：87f579e3648146cf825fc45f45bcf169')

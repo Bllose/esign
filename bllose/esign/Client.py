@@ -9,6 +9,7 @@ e签宝补救措施
 
 from datetime import datetime, timezone  
 from bllose.config.Config import bConfig
+from bllose.esign.esign_enums.env_enum import EqbEnum
 import hashlib  
 import base64
 import hmac
@@ -26,9 +27,7 @@ class eqb_sign():
         # 通过配置加载工具加载的配置内容
         # 后续逻辑直接使用保存下载的config对象, 获取对应的配置项
         self.config = config
-        self.env = env.lower()
-        if env.lower() != 'pro' and env.lower() != 'test':
-            self.env = 'test'
+        self.env = EqbEnum.of(env.lower())
 
         # 通过环境参数加载当前e签宝执行环境
         eqb = self.config['eqb'][env]
@@ -47,6 +46,82 @@ class eqb_sign():
         self.upload_host = eqb['upload']['host']
         self.app_key = eqb['appKey']
         self.type = 'POST'
+
+    def person_info_v1_accountId(self, accountId):
+        current_path = f'/v1/accounts/{accountId}'
+        self.establish_head_code(None, current_path, 'GET')
+        response_json = self.getResponseJson(bodyRaw=None, current_path=current_path)
+        if response_json['code'] == 0:
+            return response_json['data']
+        else:
+            logging.error(f'获取个人信息失败，请求路径{current_path} 返回报文{response_json}')
+            return []
+        
+    def person_info_v1(self, thirdPartyUserId):
+        current_path=f'/v1/accounts/getByThirdId?thirdPartyUserId={thirdPartyUserId}'
+        self.establish_head_code(None, current_path, 'GET')
+        response_json = self.getResponseJson(bodyRaw=None, current_path=current_path)
+        if response_json['code'] == 0:
+            return response_json['data']
+        else:
+            logging.error(f'获取个人信息失败，请求路径{current_path} 返回报文{response_json}')
+            return []
+
+    def person_info_v3(self, psnId:str = None, 
+                    psnAccount:str = None, 
+                    psnIDCardNum:str = None, 
+                    psnIDCardType:str = 'CRED_PSN_CH_IDCARD'):
+        """
+        V3查询个人认证信息
+        Args:
+            psnId(str): 个人账号ID
+            psnAccount(str): 个人账号标识（手机号或邮箱）
+            psnIDCardNum(str): 个人用户的证件号
+            psnIDCardType(str): 个人证件号类型
+            - CRED_PSN_CH_IDCARD: 中国大陆居民身份证
+            - CRED_PSN_CH_HONGKONG: 香港来往大陆通行证
+            - CRED_PSN_CH_MACAO: 澳门来往大陆通行证
+            - CRED_PSN_CH_TWCARD: 台湾来往大陆通行证
+            - CRED_PSN_PASSPORT: 护照
+
+        """
+        current_path = r'/v3/persons/identity-info?'
+        if psnId is not None and len(psnId) > 1:
+            current_path = current_path + 'psnId=' + psnId
+        elif psnAccount is not None and len(psnAccount) > 1:
+            current_path = current_path + 'psnAccount=' + psnAccount
+        elif psnIDCardNum is not None and len(psnIDCardNum) > 1:
+            current_path = current_path + 'psnIDCardNum=' + psnIDCardNum\
+                        + '&psnIDCardType=' + psnIDCardType
+        self.establish_head_code(None, current_path, 'GET')
+        response_json = self.getResponseJson(bodyRaw=None, current_path=current_path)
+        if response_json['code'] == 0:
+            return response_json['data']
+        else:
+            logging.error(f'获取个人信息失败，请求路径{current_path} 返回报文{response_json}')
+            return []
+
+    def psn_auth_url_v3(self, psnId:str = None):
+        """
+        获取个人认证&授权页面链接
+        """
+        current_path=r'/v3/psn-auth-url'
+
+        body = {
+            "psnAuthConfig": {
+                "psnId": psnId
+            }
+        }
+
+        self.establish_head_code(None, current_path)
+        response_json = self.getResponseJson(bodyRaw=json.dumps(body), 
+                                             current_path=current_path)
+        if response_json['code'] == 0:
+            return response_json['data']
+        else:
+            logging.error(f'获取个人信息失败, 返回报文{response_json}')
+            return []
+
         
     def downloadContractByFlowId(self, flowId: str) -> list:
         """
@@ -63,7 +138,7 @@ class eqb_sign():
         self.establish_head_code(None, current_path, 'GET')
         response_json = self.getResponseJson(bodyRaw=None, current_path=current_path)
         if response_json['code'] == 0:
-            return response_json['data']
+            return response_json['data']['docs']
         else:
             logging.error(f'下载流水号{flowId}的合同文件失败，返回报文{response_json}')
             return []
@@ -414,6 +489,7 @@ class eqb_sign():
         
     def createFlowOneStep(self, bodyRaw: str) -> str:
         """
+        V2版本
         e签宝，一步发起签约流程
         Args:
             bodyRaw(st): json请求报文的字符串
@@ -426,6 +502,9 @@ class eqb_sign():
         if response_json['code'] == 0:
             data = response_json['data']
             return data['flowId']
+        else:
+            logging.error(f'异步发起签约请求失败, 返回报文:{response_json}')
+            return ''
     
     def getSignFlowDetail(self, signFlowId):
         """

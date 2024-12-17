@@ -105,4 +105,4 @@ if __name__ == '__main__':
     # print(getEditUrlByTemplateId(templateIdList, env='test'))
 
     newFileDir = r'C:\Users\bllos\Desktop\temp'
-    print(getEditUrl4AllFilesUnderTheRoot(root_path=newFileDir, convertToHTML=False))
+    print(getEditUrl4AllFilesUnderTheRoot(root_path=newFileDir, convertToHTML=True))
