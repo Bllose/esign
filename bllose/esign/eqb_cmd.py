@@ -1,6 +1,8 @@
 import cmd2
 import logging
 from bllose.tasks.commons.GetSignUrlAfterMobileChanged import getTheNewSignUrl
+from bllose.tasks.commons.leaseContract import getSignUrl
+from bllose.tasks.commons.GetDynamicTemplate import uploadOneFile
 from bllose.esign.Client import eqb_sign
 from bllose.esign.esign_enums.file_status import FileStatus
 from bllose.esign.esign_enums.env_enum import EqbEnum
@@ -9,6 +11,7 @@ from rich.text import Text
 from rich.panel import Panel
 from rich.style import Style
 from bllose.esign.eqb_functions import template_function, set_title, post_handler
+
 
 class eqb_cmd(cmd2.Cmd):
     intro = "e签宝相关功能"
@@ -24,6 +27,85 @@ class eqb_cmd(cmd2.Cmd):
         # 定义别名
         self.aliases['flowid'] = 'flowId'
         self.aliases['fileid'] = 'fileId'
+
+
+    upload_parser = cmd2.Cmd2ArgumentParser()
+    upload_parser.add_argument('params', nargs='+', help='输入上传文件的绝对路径')
+    @cmd2.with_argparser(upload_parser)
+    def do_upload(self, args):
+        """
+        上传合同文件
+        """
+        abs_path = args.params[0]
+        fileName, fileId = uploadOneFile(abs_path=abs_path, env=self.env)
+        self.console.print(f'[green]{fileName}[/green] -> fileId: [bold red]{fileId}[/bold red]')
+
+    contract_parser = cmd2.Cmd2ArgumentParser()
+    contract_parser.add_argument('params', nargs=4, help='发起签约的参数有且只能有四个，顺序为:社会统一信用代码、身份证、合同服务签约流水id, 文件id')
+    @cmd2.with_argparser(contract_parser)
+    def do_contract(self, args):
+        """
+        通过部分数据发起新的“屋顶租赁协议”的签约流程
+
+        1.首先从数据库查询出“社会统一信用代码” 和 “身份证”  
+        
+        2.然后将合同文件id准备好
+        
+        使用改方法:
+        ```
+        e签宝> contract 社会统一信用代码 身份证 合同服务签约流水id 文件id
+        签约流水号 文件id 签约地址
+        ```
+
+        参数的查询方法:
+        ``` SQL
+select CONCAT_WS(' - ', task.image_code, scene_name) as '类型', concat_ws(' ', unified_social_credit_code, ex_customer_idno, id) as '参数' from (
+select a.ex_customer_name, 
+AES_DECRYPT(from_base64(substr(a.ex_customer_mobile,3)),from_base64('XDM4Vvla+6kxP++4yOXb5A==')) 'ex_customer_mobile', 
+AES_DECRYPT(from_base64(substr(a.ex_customer_idno,3)),from_base64('XDM4Vvla+6kxP++4yOXb5A==')) 'ex_customer_idno',
+d.unified_social_credit_code,
+d.company_name,
+e.id,
+e.scene_code,
+e.image_code,
+e.scene_name
+from `xk-order`.`order` a 
+left join `xk-order`.`order_product_config` b on a.order_no = b.order_no and b.is_delete = false
+left join `xk-order`.`product_company` d on b.project_company_id = d.id and d.is_delete = false
+left join `xk-contract`.`sf_sign_flow` e on a.order_no = e.object_no and e.is_delete = false
+where a.is_delete = false
+and a.order_no = 'GF241016115633116953'
+order by a.create_time desc
+limit 3 ) task;
+
+        ```
+        """
+        credit_code, id_card, id, file_id = args.params
+        signFlowId, fileId, shortUrl = getSignUrl(orgIdCard=credit_code, creditId=id_card, fileId=file_id, env=self.env)
+        self.console.print(f'新的签约地址: {shortUrl}')
+        sql = f"update `xk-contract`.`sf_sign_flow` set third_flow_id = '{signFlowId}', sign_flow_phase = 'NEW',  third_file_id = '{fileId}', sign_url = '{shortUrl}' where is_delete = 0 and "
+        self.console.print(f'[green]{sql}[/green]id = [bold red]{id}[/bold red]')
+    
+    def do_sql(self, args):
+        self.console.print(f"select CONCAT_WS(' - ', task.image_code, scene_name) as '类型', concat_ws(' ', unified_social_credit_code, ex_customer_idno, id) as '参数' from (")
+        self.console.print(f"select a.ex_customer_name, ")
+        self.console.print(f"AES_DECRYPT(from_base64(substr(a.ex_customer_mobile,3)),from_base64('XDM4Vvla+6kxP++4yOXb5A==')) 'ex_customer_mobile', ")
+        self.console.print(f"AES_DECRYPT(from_base64(substr(a.ex_customer_idno,3)),from_base64('XDM4Vvla+6kxP++4yOXb5A==')) 'ex_customer_idno',")
+        self.console.print(f"d.unified_social_credit_code,")
+        self.console.print(f"d.company_name,")
+        self.console.print(f"e.id,")
+        self.console.print(f"e.scene_code,")
+        self.console.print(f"e.image_code,")
+        self.console.print(f"e.scene_name")
+        self.console.print(f"from `xk-order`.`order` a ")
+        self.console.print(f"left join `xk-order`.`order_product_config` b on a.order_no = b.order_no and b.is_delete = false")
+        self.console.print(f"left join `xk-order`.`product_company` d on b.project_company_id = d.id and d.is_delete = false")
+        self.console.print(f"left join `xk-contract`.`sf_sign_flow` e on a.order_no = e.object_no and e.is_delete = false")
+        self.console.print(f"where a.is_delete = false")
+        self.console.print(f"and a.order_no = 'GF241016115633116953'")
+        self.console.print(f"order by a.create_time desc")
+        self.console.print(f"limit 3 ) task;")
+            
 
     person_parser = cmd2.Cmd2ArgumentParser()
     person_parser.add_argument('params', nargs='*', help='身份证')

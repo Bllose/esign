@@ -576,6 +576,7 @@ class eqb_sign():
         if response_json['code'] == 0:
             return response_json['data']['signFlowId']
         else:
+            logging.error(response_json)
             return ''
         
     def searchWordsPosition(self, fileId:str, keyword: str) -> list:

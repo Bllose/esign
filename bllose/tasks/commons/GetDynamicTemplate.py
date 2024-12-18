@@ -5,6 +5,36 @@ from bllose.esign.Client import eqb_sign
 from bllose.esign.Client import md5_base64_file
 
 
+def uploadOneFile(abs_path:str, env:str = 'test'):
+    if not os.path.exists(abs_path) or not os.path.isfile(abs_path):
+        logging.error(f"文件[{abs_path}]不存在!")
+        return "", ""
+    client: eqb_sign = eqb_sign(env=env)
+    
+    contentMd5=md5_base64_file(abs_path)
+    file_name = os.path.basename(abs_path)
+            
+    # 1. 本地文件信息通知e签宝，获取上传地址
+    fileId, fileUploadUrl = client.fetchUpdateFileUrl(contentMd5=contentMd5,
+                            fileName=file_name,
+                            fileSize=os.path.getsize(abs_path))
+    logging.debug(f'文件ID:{fileId}, 上传地址:{fileUploadUrl}')
+    if fileUploadUrl is not None and len(fileUploadUrl) > 1:
+        # 2. 通过上传地址，真正将文件上传至e签宝
+        code, reason = client.uploadFile(fileUploadUrl, contentMd5, abs_path)
+        logging.debug('返回编码:', code, ' 返回信息:', reason)
+        fileStatus = 0
+
+        counter = 0
+        while fileStatus != 2 and counter < 5:
+            time.sleep(2)
+            # 确认文件已经处理完毕，如果没有完成则循环确认
+            fileName, fileDownloadUrl, fileStatus = client.fetchFileByFileId(fileId=fileId)
+            counter += 1
+        
+        return fileName, fileId
+
+
 def getEditUrl4AllFilesUnderTheRoot(root_path:str, env:str = 'test', convertToHTML:bool = True) -> list:
     """
     通过合同文件上传到e签宝，获取支持动态模版的html编辑页面
@@ -104,5 +134,7 @@ if __name__ == '__main__':
     #                   '4a4bbd60d8354b3cbedcd23ce7c9ef6d']
     # print(getEditUrlByTemplateId(templateIdList, env='test'))
 
-    newFileDir = r'C:\Users\bllos\Desktop\temp'
-    print(getEditUrl4AllFilesUnderTheRoot(root_path=newFileDir, convertToHTML=True))
+    newFileDir = r'C:\Users\bllos\Desktop\20241218生僻字'
+    # print(getEditUrl4AllFilesUnderTheRoot(root_path=newFileDir, convertToHTML=False))
+    fileName = '光伏电站屋顶租赁协议（B端无共签人）20241128_release.pdf'
+    print(uploadOneFile(newFileDir + os.sep + fileName))
