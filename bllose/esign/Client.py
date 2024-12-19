@@ -612,6 +612,7 @@ class eqb_sign():
         if response_json['code'] == 0:
             return response_json['data']
         else:
+            logging.error(f'获取公司信息失败, 返回报文{response_json}, 请求host: {self.host}')
             return {}
         
     def getSealsInfo(self, orgId:str) -> dict:

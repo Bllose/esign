@@ -149,12 +149,12 @@ def getSignUrl(orgIdCard:str, creditId:str, fileId:str, env:str = 'test') -> tup
             - fileId(str): 合同签署文件id
             - shortUrl(str): 签约短链接
     """
-    seal = getOfficialSeal(orgIdCard=orgIdCard)
+    seal = getOfficialSeal(orgIdCard=orgIdCard, env=env)
     if seal is None or len(seal) < 1:
         logging.error(f'社会统一信用代码{orgIdCard}无法从e签宝获取公章信息!')
         return '', '', ''
     
-    psnId = getAccountId(creditId=creditId)
+    psnId = getAccountId(creditId=creditId, env=env)
     if psnId is None or len(psnId) < 1:
         logging.error(f'身份证{creditId}无法从e签宝获取个人id!')
         return '', '', ''
