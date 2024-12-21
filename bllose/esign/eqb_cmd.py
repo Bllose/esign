@@ -1,5 +1,9 @@
 import cmd2
 import logging
+import os
+import time
+import json
+from pathlib import Path
 from bllose.tasks.commons.GetSignUrlAfterMobileChanged import getTheNewSignUrl
 from bllose.tasks.commons.leaseContract import getSignUrl
 from bllose.tasks.commons.GetDynamicTemplate import uploadOneFile
@@ -10,6 +14,7 @@ from rich.console import Console
 from rich.text import Text
 from rich.panel import Panel
 from rich.style import Style
+from rich.progress import Progress
 from bllose.esign.eqb_functions import template_function, set_title, post_handler
 
 
@@ -23,10 +28,148 @@ class eqb_cmd(cmd2.Cmd):
         self.env = 'test'
         set_title("e签宝 -> 测试环境")
         self.local_save_path = '/temp/download'
+        self.update_prompt()
 
         # 定义别名
         self.aliases['flowid'] = 'flowId'
         self.aliases['fileid'] = 'fileId'
+
+    def update_prompt(self):
+        """更新提示符以显示当前工作目录"""
+        current_dir = os.getcwd()
+        self.prompt = f"e签宝 {current_dir}> "
+
+    def do_cd(self, arg):
+        """Change to the directory specified.
+
+        Usage: cd <directory>
+        """
+        new_dir = arg.strip()
+        if new_dir:
+            try:
+                os.chdir(new_dir)
+                self.update_prompt()  # 更新提示符以反映新的工作目录
+            except FileNotFoundError:
+                self.perror(f"Directory not found: {new_dir}")
+            except NotADirectoryError:
+                self.perror(f"Not a directory: {new_dir}")
+            except PermissionError:
+                self.perror(f"Permission denied: {new_dir}")
+            except Exception as e:
+                self.perror(f"Failed to change directory: {e}")
+
+    def do_pwd(self, arg):
+        """Print the current working directory.
+
+        Usage: pwd
+        """
+        print(os.getcwd())
+
+
+    ls_parser = cmd2.Cmd2ArgumentParser()
+    ls_parser.add_argument('directory', nargs='?', default='.', help='Directory to list')
+    ls_parser.add_argument('-l', action='store_true', help='use a long listing format')
+    ls_parser.add_argument('-a', '--all', action='store_true', help='do not ignore entries starting with .')
+    def do_ls(self, arg):
+        try:
+            if len(arg.arg_list) > 0:
+                directory = arg.arg_list[-1]
+            else:
+                directory = os.getcwd()
+
+            target_dir = Path(directory)
+            if not target_dir.exists():
+                self.perror(f"Directory does not exist: {target_dir}")
+                return
+
+            if not target_dir.is_dir():
+                self.perror(f"Not a directory: {target_dir}")
+                return
+
+            entries = list(target_dir.iterdir())    
+            if not entries:
+                print("No items found.")
+                return
+
+            for entry in sorted(entries):
+                if entry.is_dir():
+                    self.console.print(f'[green]{entry.name}[/green]')
+                else:
+                    self.console.print(entry.name)
+        except Exception as e:
+            self.perror(f"Failed to list directory: {e}")
+
+    check_parser = cmd2.Cmd2ArgumentParser()
+    check_parser.add_argument('params', nargs='+', help='输入上传文件的绝对路径')
+    @cmd2.with_argparser(check_parser)
+    def do_check(self, args):
+        fileName = args.params[-1]
+
+        # 判断入参是绝对路径还是文件名
+        # 若不是绝对路径则尝试再当前目录寻找指定文件
+        # 若依然不是一个文件，则抛出异常
+        if not os.path.isfile(fileName):
+            fileNameTemp = os.getcwd() + os.sep + fileName
+            if os.path.isfile(fileNameTemp):
+                fileName = fileNameTemp
+            else:
+                raise FileNotFoundError(f"No such file: '{fileName}'")
+            
+        # 请求失败，无法获取结果的流水号保存对象
+        failed_holder = {}
+        # 已经完成的流程
+        finished_holder = []
+        # 还在进行中的流程
+        processing_holder = {}
+        # 将读取的流水号暂存在内存
+        flowIdList = []
+        with open(fileName, 'r', encoding='utf-8') as file:
+            client = eqb_sign(env=self.env)
+            # 读取流水号，并统计行数    
+            total_line = 0
+            for line in file:
+                flowIdList.append(line.strip())
+                total_line += 1
+            with Progress() as progress:
+                cur_task = progress.add_task(f"[blue]分析{total_line}条合同结果", total=total_line)
+                for flowId in flowIdList:
+                    result_json = client.getSignFlowDetail(flowId)
+                    code = result_json['code']
+                    if code != 0:
+                        failed_holder.update({flowId:result_json['message']})
+                    else:
+                        result = result_json['data']
+                        signFlowStatus = result['signFlowStatus']
+                        if signFlowStatus != 2:
+                            processing_holder.update({flowId:result['signFlowDescription']})
+                        else:
+                            finished_holder.append({"action":"SIGN_FLOW_COMPLETE","timestamp":int(time.time()*1000),"signFlowId":flowId,"signFlowTitle":"户用光伏业务经销协议（2025版）","signFlowStatus":"2","statusDescription":"完成","signFlowCreateTime":result['signFlowCreateTime'],"signFlowStartTime":result['signFlowStartTime'],"signFlowFinishTime":result['signFlowFinishTime']})
+                    progress.update(cur_task, advance=1)
+        conclusion = Text()
+        conclusion.append("已完成流程: ", style="bold yellow")
+        conclusion.append(str(len(finished_holder)), style="bold green")
+        conclusion.append("\n")
+        conclusion.append("进行中流程: ", style="bold yellow")
+        conclusion.append(str(len(processing_holder)), style="bold blue")
+        conclusion.append("\n")
+        conclusion.append("查询失败流程: ", style="bold yellow")
+        conclusion.append(str(len(failed_holder)), style="bold red on white")
+        panel = Panel(conclusion, title="执行结果")
+        self.console.print(panel)
+        
+        self.console.print('\r\n')
+
+        if len(processing_holder) < 1:
+            self.console.print(f'[green]没有已完成流程[/green]')
+        else:
+            for cur_finish in finished_holder:
+                self.console.print(json.dumps(cur_finish, ensure_ascii=False))
+
+        if len(failed_holder) > 0:
+            for key, value in failed_holder.items():
+                self.console.print(f'[green]{key}[/green] -> [bold red]{value}[/bold red]')
+
+                
 
 
     upload_parser = cmd2.Cmd2ArgumentParser()
@@ -149,6 +292,7 @@ limit 3 ) task;
             result.append(doc['fileUrl'], style=urlStyle)
             panel = Panel(result, title=doc['fileName'])
             self.console.print(panel)
+            print(f"\033]8;;{doc['fileUrl']}\033\\Click here to visit example.com\033]8;;\033\\")
 
     
     template_edit_url_parser = cmd2.Cmd2ArgumentParser()
@@ -309,6 +453,15 @@ and a.order_no = '需要处理的订单号') final;
 
         self.console.print(f'{name}电话{mobile}的最新签约地址是{shortUrl}', style='green')
 
+
+
+def format_entry(entry):
+    """格式化输出条目信息"""
+    stats = entry.stat()
+    permissions = oct(stats.st_mode)[-3:]
+    size = stats.st_size
+    modified_time = stats.st_mtime
+    return f"{permissions} {size} bytes {entry.name}"
 
 if __name__ == '__main__':
     eqb_cmd().cmdloop()

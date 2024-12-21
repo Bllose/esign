@@ -506,9 +506,11 @@ class eqb_sign():
             logging.error(f'异步发起签约请求失败, 返回报文:{response_json}')
             return ''
     
-    def getSignFlowDetail(self, signFlowId):
+    def getSignFlowDetail(self, signFlowId:str) -> dict:
         """
         获取签署流程详情
+        Args:
+            signFlowId(str): 签约流水号
         """
         current_path = f'/v3/sign-flow/{signFlowId}/detail'
         self.establish_head_code(None, current_path, 'GET')
