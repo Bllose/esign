@@ -1,1 +1,1 @@
- pyinstaller -F --ico=icons/esign/esign.ico bllose/esign/eqb_cmd.py
+ pyinstaller -F --ico=icons/esign/esign.ico bllose/cmds/eqb_cmd.py
