@@ -19,6 +19,7 @@ import gzip
 import logging
 import json
 import urllib
+from urllib.parse import quote, quote_plus, urlencode
 import requests
 
 class eqb_sign():
@@ -270,7 +271,7 @@ class eqb_sign():
         fileStatus = data['fileStatus']
         return fileName, fileDownloadUrl, fileStatus
     
-    def docTemplateCreateUrl(self, fileId, docTemplateName, docTemplateType):
+    def docTemplateCreateUrl(self, fileId, docTemplateName, docTemplateType) -> tuple:
         """
         <h1>获取制作合同模板页面</h1>
         Args:
@@ -305,11 +306,24 @@ class eqb_sign():
         
     def docTemplateEditUrl(self, templateId:str) -> str:
         """
+        获取编辑合同模板页面(短连接)
+        Args:
+            templateId(str): 模版ID
+        Returns:
+            url(str): 编辑url (短连接，24小时有效)
+        """
+        shortUrl, _ = self.docTemplateEditUrlAll(templateId)
+        return shortUrl
+    
+    def docTemplateEditUrlAll(self, templateId:str) -> tuple:
+        """
         获取编辑合同模板页面
         Args:
             templateId(str): 模版ID
         Returns:
-            url(str): 编辑url 24小时有效
+            url(tuple): 编辑url 24小时有效
+                - shortUrl(str): 短连接
+                - longUrl(str): 长连接
         """
         current_path = f'/v3/doc-templates/{templateId}/doc-template-edit-url'
         request_dict = {
@@ -319,10 +333,11 @@ class eqb_sign():
         response_json = self.getResponseJson(bodyRaw, current_path)
         if response_json['code'] == 0:
             data = response_json['data']
-            return data['docTemplateEditUrl']
+            return data['docTemplateEditUrl'], data['docTemplateEditLongUrl']
         else:
-            logging.error(f'获取模版{templateId}编辑地址失败,返回报文:{response_json}')
-            return ''
+            logging.debug(f'获取模版{templateId}编辑地址失败,返回报文:{response_json}')
+            return '', ''
+
         
     def getEncryptionByTemplateId(self, templateId:str) -> str:
         """
@@ -345,7 +360,7 @@ class eqb_sign():
             query_params = parse_qs(parsed_url.query)
             return query_params.get('encryption')[0]
         
-    def getDocTemplateDetails(self, templateId:str, encryption:str):
+    def getDocTemplateDetails(self, templateId:str, encryption:str) -> dict:
         """
         获取模版的详细信息
         Args:
@@ -354,15 +369,40 @@ class eqb_sign():
         Returns:
             templateDetail(dict): 模版详情
         """
-        current_path = f'/webserver/v3/api/doc-templates/{templateId}/detail?encryption={encryption}'
+        
+        current_path = f'/webserver/v3/api/doc-templates/{templateId}/detail?encryption={quote(encryption, safe='')}'
         response = requests.get('http://' + self.web_host + current_path)
 
         if response.status_code != 200:
             logging.warning(f'请求失败, code:{response.status_code} reason:{response.reason}')
         
         response_json = json.loads(response.text)
-        return response_json['data']
-
+        if response_json['code'] == 0 :
+            return response_json['data']
+        else:
+            logging.error(f'获取模版{templateId}详情失败, 返回报文: {response_json}')
+            return {}
+        
+    def updateDocTemplateComponents(self, templateId:str, encryption:str, requestBody:dict) -> None:
+        """
+        指定模版id更新组件信息
+        Args:
+            templateId(str): 模版ID
+            encryption(str): 访问秘钥
+            requestBody(str): 组件参数
+        """
+        current_path = f'/webserver/v3/api/doc-templates/{quote(templateId)}/templateAndComponents?encryption={quote(encryption, safe='')}'
+        headers = {
+            "Content-Type": "application/json"
+        }
+        response = requests.post('http://' + self.web_host + current_path, json=requestBody, headers=headers)
+        if response.status_code != 200:
+            logging.error(f'上传更新的模版失败, 返回报文: {json.dumps(response, ensure_ascii=False)}')
+        else:
+            responseJson = response.json()
+            if responseJson['code'] != 0:
+                logging.warning(f'上传更新的模版失败, 返回报文: {response.json()}')
+        
 
     def fetchSignUrl(self, flowId:str, mobile:str) -> str:
         """

@@ -7,6 +7,7 @@ from pathlib import Path
 from bllose.tasks.commons.GetSignUrlAfterMobileChanged import getTheNewSignUrl
 from bllose.tasks.commons.leaseContract import getSignUrl
 from bllose.tasks.commons.GetDynamicTemplate import uploadOneFile
+from bllose.tasks.commons.CopyTemplate import copy
 from bllose.esign.Client import eqb_sign
 from bllose.esign.esign_enums.file_status import FileStatus
 from bllose.esign.esign_enums.env_enum import EqbEnum
@@ -99,6 +100,57 @@ class eqb_cmd(cmd2.Cmd):
         except Exception as e:
             self.perror(f"Failed to list directory: {e}")
 
+    totest_parser = cmd2.Cmd2ArgumentParser()
+    totest_parser.add_argument('params', nargs=1, help='将指定合同模版复制到测试环境')
+    @cmd2.with_argparser(totest_parser)
+    def do_totest(self, args):
+        templateId = args.params[-1]
+        originEnv = 'test'
+        targetEnv = 'test'
+        try:
+            originTemplate, targetTemplate = copy(originEnv, targetEnv, templateId)
+        except ValueError:
+            originEnv = 'pro'
+            originTemplate, targetTemplate = copy(originEnv, targetEnv, templateId)
+        conclusion = Text()
+        conclusion.append("源模版[", style="bold yellow")
+        conclusion.append(originEnv, style="bold green")
+        conclusion.append("]: ", style="bold yellow")
+        conclusion.append(originTemplate, style="bold red on white")
+        conclusion.append("\n")
+        conclusion.append("目标模板[", style="bold yellow")
+        conclusion.append(targetEnv, style="bold green")
+        conclusion.append("]: ", style="bold yellow")
+        conclusion.append(targetTemplate, style="bold red on white")
+        panel = Panel(conclusion, title="拷贝完成")
+        self.console.print(panel)
+        
+
+    topro_parser = cmd2.Cmd2ArgumentParser()
+    topro_parser.add_argument('params', nargs=1, help='将指定合同模版复制到测试环境')
+    @cmd2.with_argparser(topro_parser)
+    def do_topro(self, args):
+        templateId = args.params[-1]
+        originEnv = 'test'
+        targetEnv = 'pro'
+        try:
+            originTemplate, targetTemplate = copy(originEnv, targetEnv, templateId)
+        except ValueError:
+            originEnv = 'pro'
+            originTemplate, targetTemplate = copy(originEnv, targetEnv, templateId)
+        conclusion = Text()
+        conclusion.append("源模版[", style="bold yellow")
+        conclusion.append(originEnv, style="bold green")
+        conclusion.append("]: ", style="bold yellow")
+        conclusion.append(originTemplate, style="bold red on white")
+        conclusion.append("\n")
+        conclusion.append("目标模板[", style="bold yellow")
+        conclusion.append(targetEnv, style="bold green")
+        conclusion.append("]: ", style="bold yellow")
+        conclusion.append(targetTemplate, style="bold red on white")
+        panel = Panel(conclusion, title="拷贝完成")
+        self.console.print(panel)
+
     check_parser = cmd2.Cmd2ArgumentParser()
     check_parser.add_argument('params', nargs='+', help='输入上传文件的绝对路径')
     @cmd2.with_argparser(check_parser)
@@ -180,6 +232,10 @@ class eqb_cmd(cmd2.Cmd):
         上传合同文件
         """
         abs_path = args.params[0]
+        if not os.path.isfile(abs_path):
+            abs_path = os.getcwd + os.sep + abs_path
+            if not os.path.isfile(abs_path):
+                self.console.print(f'文件不存在: [bold red]{args.params[0]}[/bold red]')
         fileName, fileId = uploadOneFile(abs_path=abs_path, env=self.env)
         self.console.print(f'[green]{fileName}[/green] -> fileId: [bold red]{fileId}[/bold red]')
 

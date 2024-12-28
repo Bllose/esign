@@ -60,47 +60,63 @@ def getEditUrl4AllFilesUnderTheRoot(root_path:str, env:str = 'test', convertToHT
     resultList = []
     client: eqb_sign = eqb_sign(env=env)
     for root, dirs, files in os.walk(root_path):
+        dirs = []
         for curFileName in files:
-            abs_path = root + os.sep + curFileName
-            file_name = os.path.basename(abs_path)
-            if file_name.startswith('~'):
-                # 临时文件，直接跳过
-                continue
-
-            contentMd5=md5_base64_file(abs_path)
-            
-            # 1. 本地文件信息通知e签宝，获取上传地址
-            fileId, fileUploadUrl = client.fetchUpdateFileUrl(contentMd5=contentMd5,
-                                    fileName=file_name,
-                                    fileSize=os.path.getsize(abs_path),
-                                    convertToHTML=convertToHTML)
-            logging.debug(f'文件ID:{fileId}, 上传地址:{fileUploadUrl}')
-            if fileUploadUrl is not None and len(fileUploadUrl) > 1:
-                # 2. 通过上传地址，真正将文件上传至e签宝
-                code, reason = client.uploadFile(fileUploadUrl, contentMd5, abs_path)
-                logging.debug('返回编码:', code, ' 返回信息:', reason)
-                fileStatus = 0
-
-                while fileStatus != 2:
-                    time.sleep(2)
-                    # 确认文件已经处理完毕，如果没有完成则循环确认
-                    fileName, fileDownloadUrl, fileStatus = client.fetchFileByFileId(fileId=fileId)
-                
-                if convertToHTML:
-                    # 只有当
-                    # 3. 通过上传并转化为html的合同文件ID，获取对应的模版ID
-                    templateId, templateUrl = client.docTemplateCreateUrl(fileId=fileId, 
-                                                docTemplateName=file_name, 
-                                                docTemplateType=1)
-                    # 4. 通过模版ID获取编辑页面的地址
-                    editUrl = client.docTemplateEditUrl(templateId)
-                    logging.debug(f'文件 ->{fileName}<- 生成模版ID ->{templateId}<- 编辑地址 ->{editUrl}<-')
-                    resultList.append({'fileName': fileName, 'templateId': templateId, 'editUrl': editUrl, 'fileId': fileId})
-                else:
-                    resultList.append({'fileName': fileName, 'fileId': fileId})
-
+            upload_the_file(root=root, curFileName=curFileName, client=client, convertToHTML=convertToHTML, resultList=resultList)
     return resultList
 
+
+def upload_the_file(root:str, curFileName: str, client: eqb_sign, convertToHTML: bool, resultList: list = []) -> tuple:
+    """
+    上传单个文件
+    Args:
+        root(str): 文件所在目录
+        curFileName(str): 当前所要上传文件名字
+        client(eqb_sign): e签宝客户端
+        convertToHTML(bool): 是否要转化为HTML。True：转化为html；False：不转化
+        resultList(list): 收集上传结果，可不传
+    Returns:
+        result(tuple): 若存在则返回模版ID,文件ID
+            - templateId(str): 模版ID，不存在则为空字符串
+            - fileId(str): 文件ID，不存在则返回空字符串
+    """
+    abs_path = root + os.sep + curFileName
+    file_name = os.path.basename(abs_path)
+    if file_name.startswith('~'):
+        # 临时文件，直接跳过
+        return
+
+    contentMd5=md5_base64_file(abs_path)
+    
+    # 1. 本地文件信息通知e签宝，获取上传地址
+    fileId, fileUploadUrl = client.fetchUpdateFileUrl(contentMd5=contentMd5,
+                            fileName=file_name,
+                            fileSize=os.path.getsize(abs_path),
+                            convertToHTML=convertToHTML)
+    logging.debug(f'文件ID:{fileId}, 上传地址:{fileUploadUrl}')
+    if fileUploadUrl is not None and len(fileUploadUrl) > 1:
+        # 2. 通过上传地址，真正将文件上传至e签宝
+        code, reason = client.uploadFile(fileUploadUrl, contentMd5, abs_path)
+        logging.debug('返回编码:', code, ' 返回信息:', reason)
+        fileStatus = 0
+
+        while fileStatus != 2:
+            time.sleep(2)
+            # 确认文件已经处理完毕，如果没有完成则循环确认
+            fileName, fileDownloadUrl, fileStatus = client.fetchFileByFileId(fileId=fileId)
+        
+        # 只有当
+        # 3. 通过上传并转化为html的合同文件ID，获取对应的模版ID
+        templateId, templateUrl = client.docTemplateCreateUrl(fileId=fileId, 
+                                    docTemplateName=file_name, 
+                                    docTemplateType=1)
+        # 4. 通过模版ID获取编辑页面的地址
+        editUrl = client.docTemplateEditUrl(templateId)
+        logging.debug(f'文件 ->{fileName}<- 生成模版ID ->{templateId}<- 编辑地址 ->{editUrl}<-')
+        resultList.append({'fileName': fileName, 'templateId': templateId, 'editUrl': editUrl, 'fileId': fileId})
+        return templateId, fileId
+
+    return '', ''
 
 def getEditUrlByTemplateId(templateIdList:list, env:str = 'test') -> list:
     """
