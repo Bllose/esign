@@ -33,44 +33,23 @@ class AutoLoadCommandSet(CommandSet):
         set_title("e签宝 -> 测试环境")
         self.local_save_path = '/temp/download'
 
-    totest_parser = cmd2.Cmd2ArgumentParser()
-    totest_parser.add_argument('params', nargs=1, help='将指定合同模版复制到测试环境')
-    @cmd2.with_argparser(totest_parser)
-    def do_totest(self, args):
+    copy_parser = cmd2.Cmd2ArgumentParser()
+    copy_parser.add_argument('-p', '--pro', action='store_true', help='拷贝到生产环境。默认为false，将被拷贝到测试环境')
+    copy_parser.add_argument('params', nargs=1, help='将指定合同模版复制到指定环境，默认测试，-p生产。\r\n默认从测试环境拷贝，如果测试环境没有则从生产环境拷贝。若都不存在则报错。')
+    @cmd2.with_argparser(copy_parser)
+    def do_copy(self, args):
         templateId = args.params[-1]
-        originEnv = 'test'
-        targetEnv = 'test'
+        originEnv = 'test' 
+        targetEnv = 'pro' if args.pro else 'test'
         try:
             originTemplate, targetTemplate = copy(originEnv, targetEnv, templateId)
         except ValueError:
             originEnv = 'pro'
-            originTemplate, targetTemplate = copy(originEnv, targetEnv, templateId)
-        conclusion = Text()
-        conclusion.append("源模版[", style="bold yellow")
-        conclusion.append(originEnv, style="bold green")
-        conclusion.append("]: ", style="bold yellow")
-        conclusion.append(originTemplate, style="bold red on white")
-        conclusion.append("\n")
-        conclusion.append("目标模板[", style="bold yellow")
-        conclusion.append(targetEnv, style="bold green")
-        conclusion.append("]: ", style="bold yellow")
-        conclusion.append(targetTemplate, style="bold red on white")
-        panel = Panel(conclusion, title="拷贝完成")
-        self.console.print(panel)
-        
-
-    topro_parser = cmd2.Cmd2ArgumentParser()
-    topro_parser.add_argument('params', nargs=1, help='将指定合同模版复制到生产环境')
-    @cmd2.with_argparser(topro_parser)
-    def do_topro(self, args):
-        templateId = args.params[-1]
-        originEnv = 'test'
-        targetEnv = 'pro'
-        try:
-            originTemplate, targetTemplate = copy(originEnv, targetEnv, templateId)
-        except ValueError:
-            originEnv = 'pro'
-            originTemplate, targetTemplate = copy(originEnv, targetEnv, templateId)
+            try:
+                originTemplate, targetTemplate = copy(originEnv, targetEnv, templateId)
+            except ValueError:
+                self.console.print(f'模板:[bold red]{templateId}[/bold red]不存在~')
+                return
         conclusion = Text()
         conclusion.append("源模版[", style="bold yellow")
         conclusion.append(originEnv, style="bold green")
