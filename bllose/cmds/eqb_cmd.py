@@ -1,6 +1,4 @@
 import cmd2
-from rich.console import Console
-from bllose.esign.eqb_functions import set_title
 from bllose.cmds.commandSets.sys_command_sets import CustomInitCommandSet
 from bllose.cmds.commandSets.eqb_command_sets import AutoLoadCommandSet
 
@@ -13,11 +11,7 @@ class eqb_cmd(cmd2.Cmd):
         # 将command_sets加入到kwargs中以便传递给父类构造函数
         if command_sets is not None:
             kwargs['command_sets'] = command_sets
-
         super().__init__(*args, **kwargs)
-        self.console = Console()
-        self.env = 'test'
-        set_title("e签宝 -> 测试环境")
 
         # 定义别名
         self.aliases['flowid'] = 'flowId'
