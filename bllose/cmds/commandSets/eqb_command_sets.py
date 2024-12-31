@@ -34,6 +34,7 @@ class AutoLoadCommandSet(CommandSet):
         self.local_save_path = '/temp/download'
 
     company_parser = cmd2.Cmd2ArgumentParser()
+    company_parser.add_argument('-o', '--orgId', action='store_true', help='通过orgId进行查询')
     company_parser.add_argument('creditId', nargs=1, help='通过社会统一信用代码获取企业信息')
     @cmd2.with_argparser(company_parser)
     def do_company(self, args):
@@ -43,7 +44,7 @@ class AutoLoadCommandSet(CommandSet):
             return
 
         client = eqb_sign(env=self.env)
-        orgInfo = client.getOrganizationInfo(creditId)
+        orgInfo = client.getOrganizationInfo(orgId=creditId) if args.orgId else client.getOrganizationInfo(creditId)
         if len(orgInfo) > 0:
             conclusion = Text()
             conclusion.append("企业ID    ", style="bold yellow")

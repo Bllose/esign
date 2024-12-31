@@ -638,17 +638,21 @@ class eqb_sign():
             logging.error(f'查询关键词位置失败,返回报文:{response_json}')
             return []
 
-    def getOrganizationInfo(self, orgIdCard: str) -> dict:
+    def getOrganizationInfo(self, orgIdCard: str = '', orgId: str = '') -> dict:
         """
         通过社会统一信用代码
         获取项目公司在e签宝上的相关信息
         Args:
             orgIdCard:str 社会统一信用代码
+            orgId:str 公司ID编号
         Returns:
             data:dict 项目公司基本信息字典
             - orgId:str 项目公司在e签宝中的ID号
         """
-        current_path = f'/v3/organizations/identity-info?orgIDCardNum={orgIdCard}&orgIDCardType=CRED_ORG_USCC'
+        if orgId is not None and len(orgId) > 1:
+            current_path = f'/v3/organizations/identity-info?orgId={orgId}'
+        else:
+            current_path = f'/v3/organizations/identity-info?orgIDCardNum={orgIdCard}&orgIDCardType=CRED_ORG_USCC'
         self.establish_head_code(None, current_path, 'GET')
         response_json = self.getResponseJson(bodyRaw=None, current_path=current_path)
         if response_json['code'] == 0:
