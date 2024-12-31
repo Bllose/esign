@@ -33,6 +33,59 @@ class AutoLoadCommandSet(CommandSet):
         set_title("e签宝 -> 测试环境")
         self.local_save_path = '/temp/download'
 
+    company_parser = cmd2.Cmd2ArgumentParser()
+    company_parser.add_argument('creditId', nargs=1, help='通过社会统一信用代码获取企业信息')
+    @cmd2.with_argparser(company_parser)
+    def do_company(self, args):
+        creditId = args.creditId[-1]
+        if creditId is None or len(creditId) < 1:
+            self.console.print(f'')
+            return
+
+        client = eqb_sign(env=self.env)
+        orgInfo = client.getOrganizationInfo(creditId)
+        if len(orgInfo) > 0:
+            conclusion = Text()
+            conclusion.append("企业ID    ", style="bold yellow")
+            conclusion.append(' : ')
+            conclusion.append(orgInfo['orgId'], style="green")
+            conclusion.append("\r\n")
+            if orgInfo['realnameStatus'] == 1:
+                conclusion.append('已实名', style="green")
+            else:
+                conclusion.append('未实名', style="bold red")
+            conclusion.append("\r\n")
+            if orgInfo['authorizeUserInfo']:
+                conclusion.append('已授权当前企业', style="green")
+            else:
+                conclusion.append('未授权当前企业', style="bold red")
+            conclusion.append("\r\n")
+
+            subOrgInfo = orgInfo['orgInfo']
+            from bllose.esign.esign_enums.org_type import OrgTypeEnum
+            conclusion.append(OrgTypeEnum.of(subOrgInfo['orgIDCardType']).msg, style='bold yellow')
+            conclusion.append('   : ')
+            conclusion.append(subOrgInfo['orgIDCardNum'], style='green')
+            conclusion.append("\r\n")
+            
+            conclusion.append('法人名称  ', style='bold yellow')
+            conclusion.append(' : ')
+            conclusion.append(subOrgInfo['legalRepName'], style='green')
+            conclusion.append("\r\n")
+            
+            conclusion.append('负责人    ', style='bold yellow')
+            conclusion.append(' : ')
+            conclusion.append(subOrgInfo['adminName'], style='green')
+            conclusion.append("\r\n")
+            
+            conclusion.append('负责人电话', style='bold yellow')
+            conclusion.append(' : ')
+            conclusion.append(subOrgInfo['adminAccount'], style='green')
+            panel = Panel(conclusion, title=orgInfo['orgName'])
+            self.console.print(panel)
+        else:
+            self.console.print("未查询到相关信息", style="red")
+
     copy_parser = cmd2.Cmd2ArgumentParser()
     copy_parser.add_argument('-p', '--pro', action='store_true', help='拷贝到生产环境。默认为false，将被拷贝到测试环境')
     copy_parser.add_argument('params', nargs=1, help='将指定合同模版复制到指定环境，默认测试，-p生产。\r\n默认从测试环境拷贝，如果测试环境没有则从生产环境拷贝。若都不存在则报错。')
@@ -63,78 +116,6 @@ class AutoLoadCommandSet(CommandSet):
         panel = Panel(conclusion, title="拷贝完成")
         self.console.print(panel)
 
-    check_parser = cmd2.Cmd2ArgumentParser()
-    check_parser.add_argument('params', nargs='+', help='输入上传文件的绝对路径')
-    @cmd2.with_argparser(check_parser)
-    def do_check(self, args):
-        fileName = args.params[-1]
-
-        # 判断入参是绝对路径还是文件名
-        # 若不是绝对路径则尝试再当前目录寻找指定文件
-        # 若依然不是一个文件，则抛出异常
-        if not os.path.isfile(fileName):
-            fileNameTemp = os.getcwd() + os.sep + fileName
-            if os.path.isfile(fileNameTemp):
-                fileName = fileNameTemp
-            else:
-                raise FileNotFoundError(f"No such file: '{fileName}'")
-            
-        # 请求失败，无法获取结果的流水号保存对象
-        failed_holder = {}
-        # 已经完成的流程
-        finished_holder = []
-        # 还在进行中的流程
-        processing_holder = {}
-        # 将读取的流水号暂存在内存
-        flowIdList = []
-        with open(fileName, 'r', encoding='utf-8') as file:
-            client = eqb_sign(env=self.env)
-            # 读取流水号，并统计行数    
-            total_line = 0
-            for line in file:
-                flowIdList.append(line.strip())
-                total_line += 1
-            with Progress() as progress:
-                cur_task = progress.add_task(f"[blue]分析{total_line}条合同结果", total=total_line)
-                for flowId in flowIdList:
-                    result_json = client.getSignFlowDetail(flowId)
-                    code = result_json['code']
-                    if code != 0:
-                        failed_holder.update({flowId:result_json['message']})
-                    else:
-                        result = result_json['data']
-                        signFlowStatus = result['signFlowStatus']
-                        if signFlowStatus != 2:
-                            processing_holder.update({flowId:result['signFlowDescription']})
-                        else:
-                            finished_holder.append({"action":"SIGN_FLOW_COMPLETE","timestamp":int(time.time()*1000),"signFlowId":flowId,"signFlowTitle":"户用光伏业务经销协议（2025版）","signFlowStatus":"2","statusDescription":"完成","signFlowCreateTime":result['signFlowCreateTime'],"signFlowStartTime":result['signFlowStartTime'],"signFlowFinishTime":result['signFlowFinishTime']})
-                    progress.update(cur_task, advance=1)
-        conclusion = Text()
-        conclusion.append("已完成流程: ", style="bold yellow")
-        conclusion.append(str(len(finished_holder)), style="bold green")
-        conclusion.append("\n")
-        conclusion.append("进行中流程: ", style="bold yellow")
-        conclusion.append(str(len(processing_holder)), style="bold blue")
-        conclusion.append("\n")
-        conclusion.append("查询失败流程: ", style="bold yellow")
-        conclusion.append(str(len(failed_holder)), style="bold red on white")
-        panel = Panel(conclusion, title="执行结果")
-        self.console.print(panel)
-        
-        self.console.print('\r\n')
-
-        if len(processing_holder) < 1:
-            self.console.print(f'[green]没有已完成流程[/green]')
-        else:
-            for cur_finish in finished_holder:
-                self.console.print(json.dumps(cur_finish, ensure_ascii=False))
-
-        if len(failed_holder) > 0:
-            for key, value in failed_holder.items():
-                self.console.print(f'[green]{key}[/green] -> [bold red]{value}[/bold red]')
-
-                
-
 
     upload_parser = cmd2.Cmd2ArgumentParser()
     upload_parser.add_argument('params', nargs='+', help='输入上传文件的绝对路径')
@@ -150,73 +131,6 @@ class AutoLoadCommandSet(CommandSet):
                 self.console.print(f'文件不存在: [bold red]{args.params[0]}[/bold red]')
         fileName, fileId = uploadOneFile(abs_path=abs_path, env=self.env)
         self.console.print(f'[green]{fileName}[/green] -> fileId: [bold red]{fileId}[/bold red]')
-
-    contract_parser = cmd2.Cmd2ArgumentParser()
-    contract_parser.add_argument('params', nargs=4, help='发起签约的参数有且只能有四个，顺序为:社会统一信用代码、身份证、合同服务签约流水id, 文件id')
-    @cmd2.with_argparser(contract_parser)
-    def do_contract(self, args):
-        """
-        通过部分数据发起新的“屋顶租赁协议”的签约流程
-
-        1.首先从数据库查询出“社会统一信用代码” 和 “身份证”  
-        
-        2.然后将合同文件id准备好
-        
-        使用改方法:
-        ```
-        e签宝> contract 社会统一信用代码 身份证 合同服务签约流水id 文件id
-        签约流水号 文件id 签约地址
-        ```
-
-        参数的查询方法:
-        ``` SQL
-select CONCAT_WS(' - ', task.image_code, scene_name) as '类型', concat_ws(' ', unified_social_credit_code, ex_customer_idno, id) as '参数' from (
-select a.ex_customer_name, 
-AES_DECRYPT(from_base64(substr(a.ex_customer_mobile,3)),from_base64('XDM4Vvla+6kxP++4yOXb5A==')) 'ex_customer_mobile', 
-AES_DECRYPT(from_base64(substr(a.ex_customer_idno,3)),from_base64('XDM4Vvla+6kxP++4yOXb5A==')) 'ex_customer_idno',
-d.unified_social_credit_code,
-d.company_name,
-e.id,
-e.scene_code,
-e.image_code,
-e.scene_name
-from `xk-order`.`order` a 
-left join `xk-order`.`order_product_config` b on a.order_no = b.order_no and b.is_delete = false
-left join `xk-order`.`product_company` d on b.project_company_id = d.id and d.is_delete = false
-left join `xk-contract`.`sf_sign_flow` e on a.order_no = e.object_no and e.is_delete = false
-where a.is_delete = false
-and a.order_no = 'GF241016115633116953'
-order by a.create_time desc
-limit 3 ) task;
-
-        ```
-        """
-        credit_code, id_card, id, file_id = args.params
-        signFlowId, fileId, shortUrl = getSignUrl(orgIdCard=credit_code, creditId=id_card, fileId=file_id, env=self.env)
-        self.console.print(f'新的签约地址: {shortUrl}')
-        sql = f"update `xk-contract`.`sf_sign_flow` set third_flow_id = '{signFlowId}', sign_flow_phase = 'NEW',  third_file_id = '{fileId}', sign_url = '{shortUrl}' where is_delete = 0 and "
-        self.console.print(f'[green]{sql}[/green]id = [bold red]{id}[/bold red]')
-    
-    def do_sql(self, args):
-        self.console.print(f"select CONCAT_WS(' - ', task.image_code, scene_name) as '类型', concat_ws(' ', unified_social_credit_code, ex_customer_idno, id) as '参数' from (")
-        self.console.print(f"select a.ex_customer_name, ")
-        self.console.print(f"AES_DECRYPT(from_base64(substr(a.ex_customer_mobile,3)),from_base64('XDM4Vvla+6kxP++4yOXb5A==')) 'ex_customer_mobile', ")
-        self.console.print(f"AES_DECRYPT(from_base64(substr(a.ex_customer_idno,3)),from_base64('XDM4Vvla+6kxP++4yOXb5A==')) 'ex_customer_idno',")
-        self.console.print(f"d.unified_social_credit_code,")
-        self.console.print(f"d.company_name,")
-        self.console.print(f"e.id,")
-        self.console.print(f"e.scene_code,")
-        self.console.print(f"e.image_code,")
-        self.console.print(f"e.scene_name")
-        self.console.print(f"from `xk-order`.`order` a ")
-        self.console.print(f"left join `xk-order`.`order_product_config` b on a.order_no = b.order_no and b.is_delete = false")
-        self.console.print(f"left join `xk-order`.`product_company` d on b.project_company_id = d.id and d.is_delete = false")
-        self.console.print(f"left join `xk-contract`.`sf_sign_flow` e on a.order_no = e.object_no and e.is_delete = false")
-        self.console.print(f"where a.is_delete = false")
-        self.console.print(f"and a.order_no = 'GF241016115633116953'")
-        self.console.print(f"order by a.create_time desc")
-        self.console.print(f"limit 3 ) task;")
-            
 
     person_parser = cmd2.Cmd2ArgumentParser()
     person_parser.add_argument('params', nargs='*', help='身份证')
@@ -364,6 +278,7 @@ limit 3 ) task;
     load_parser.add_argument('-t', '--target', type=str, default='signer', help='指定获取的签约地址所属角色，signer:签署人/农户； cosigner: 共签人/第二位签署人')
     load_parser.add_argument('params', nargs='+', help='其他参数')
     @cmd2.with_argparser(load_parser)
+    @cmd2.with_category('e签宝任务')
     def do_sign_url(self, args):
         """
         获取指定角色的签署地址(默认测试环境)
@@ -420,3 +335,122 @@ and a.order_no = '需要处理的订单号') final;
         shortUrl = getTheNewSignUrl(name=name, mobile=mobile, creditId=creditId, flowId=params[1], env=self.env)
 
         self.console.print(f'{name}电话{mobile}的最新签约地址是{shortUrl}', style='green')
+
+
+
+    check_parser = cmd2.Cmd2ArgumentParser()
+    check_parser.add_argument('params', nargs='+', help='输入上传文件的绝对路径')
+    @cmd2.with_argparser(check_parser)
+    @cmd2.with_category('e签宝任务')
+    def do_check(self, args):
+        fileName = args.params[-1]
+
+        # 判断入参是绝对路径还是文件名
+        # 若不是绝对路径则尝试再当前目录寻找指定文件
+        # 若依然不是一个文件，则抛出异常
+        if not os.path.isfile(fileName):
+            fileNameTemp = os.getcwd() + os.sep + fileName
+            if os.path.isfile(fileNameTemp):
+                fileName = fileNameTemp
+            else:
+                raise FileNotFoundError(f"No such file: '{fileName}'")
+            
+        # 请求失败，无法获取结果的流水号保存对象
+        failed_holder = {}
+        # 已经完成的流程
+        finished_holder = []
+        # 还在进行中的流程
+        processing_holder = {}
+        # 将读取的流水号暂存在内存
+        flowIdList = []
+        with open(fileName, 'r', encoding='utf-8') as file:
+            client = eqb_sign(env=self.env)
+            # 读取流水号，并统计行数    
+            total_line = 0
+            for line in file:
+                flowIdList.append(line.strip())
+                total_line += 1
+            with Progress() as progress:
+                cur_task = progress.add_task(f"[blue]分析{total_line}条合同结果", total=total_line)
+                for flowId in flowIdList:
+                    result_json = client.getSignFlowDetail(flowId)
+                    code = result_json['code']
+                    if code != 0:
+                        failed_holder.update({flowId:result_json['message']})
+                    else:
+                        result = result_json['data']
+                        signFlowStatus = result['signFlowStatus']
+                        if signFlowStatus != 2:
+                            processing_holder.update({flowId:result['signFlowDescription']})
+                        else:
+                            finished_holder.append({"action":"SIGN_FLOW_COMPLETE","timestamp":int(time.time()*1000),"signFlowId":flowId,"signFlowTitle":"户用光伏业务经销协议（2025版）","signFlowStatus":"2","statusDescription":"完成","signFlowCreateTime":result['signFlowCreateTime'],"signFlowStartTime":result['signFlowStartTime'],"signFlowFinishTime":result['signFlowFinishTime']})
+                    progress.update(cur_task, advance=1)
+        conclusion = Text()
+        conclusion.append("已完成流程: ", style="bold yellow")
+        conclusion.append(str(len(finished_holder)), style="bold green")
+        conclusion.append("\n")
+        conclusion.append("进行中流程: ", style="bold yellow")
+        conclusion.append(str(len(processing_holder)), style="bold blue")
+        conclusion.append("\n")
+        conclusion.append("查询失败流程: ", style="bold yellow")
+        conclusion.append(str(len(failed_holder)), style="bold red on white")
+        panel = Panel(conclusion, title="执行结果")
+        self.console.print(panel)
+        
+        self.console.print('\r\n')
+
+        if len(processing_holder) < 1:
+            self.console.print(f'[green]没有已完成流程[/green]')
+        else:
+            for cur_finish in finished_holder:
+                self.console.print(json.dumps(cur_finish, ensure_ascii=False))
+
+        if len(failed_holder) > 0:
+            for key, value in failed_holder.items():
+                self.console.print(f'[green]{key}[/green] -> [bold red]{value}[/bold red]')
+
+    @cmd2.with_category('e签宝任务')
+    def do_sql(self, args):
+        self.console.print(f"select CONCAT_WS(' - ', task.image_code, scene_name) as '类型', concat_ws(' ', unified_social_credit_code, ex_customer_idno, id) as '参数' from (")
+        self.console.print(f"select a.ex_customer_name, ")
+        self.console.print(f"AES_DECRYPT(from_base64(substr(a.ex_customer_mobile,3)),from_base64('XDM4Vvla+6kxP++4yOXb5A==')) 'ex_customer_mobile', ")
+        self.console.print(f"AES_DECRYPT(from_base64(substr(a.ex_customer_idno,3)),from_base64('XDM4Vvla+6kxP++4yOXb5A==')) 'ex_customer_idno',")
+        self.console.print(f"d.unified_social_credit_code,")
+        self.console.print(f"d.company_name,")
+        self.console.print(f"e.id,")
+        self.console.print(f"e.scene_code,")
+        self.console.print(f"e.image_code,")
+        self.console.print(f"e.scene_name")
+        self.console.print(f"from `xk-order`.`order` a ")
+        self.console.print(f"left join `xk-order`.`order_product_config` b on a.order_no = b.order_no and b.is_delete = false")
+        self.console.print(f"left join `xk-order`.`product_company` d on b.project_company_id = d.id and d.is_delete = false")
+        self.console.print(f"left join `xk-contract`.`sf_sign_flow` e on a.order_no = e.object_no and e.is_delete = false")
+        self.console.print(f"where a.is_delete = false")
+        self.console.print(f"and a.order_no = 'GF241016115633116953'")
+        self.console.print(f"order by a.create_time desc")
+        self.console.print(f"limit 3 ) task;")
+
+    contract_parser = cmd2.Cmd2ArgumentParser()
+    contract_parser.add_argument('params', nargs=4, help='发起签约的参数有且只能有四个，顺序为:社会统一信用代码、身份证、合同服务签约流水id, 文件id\r\n前三个参数使用命令:sql获取')
+    @cmd2.with_argparser(contract_parser)
+    @cmd2.with_category('e签宝任务')
+    def do_contract(self, args):
+        """
+        通过部分数据发起新的“屋顶租赁协议”的签约流程
+
+        1.首先从数据库查询出“社会统一信用代码” 和 “身份证”  
+        
+        2.然后将合同文件id准备好
+        
+        使用改方法:
+        ```
+        e签宝> contract 社会统一信用代码 身份证 合同服务签约流水id 文件id
+        签约流水号 文件id 签约地址
+        ```
+        """
+        credit_code, id_card, id, file_id = args.params
+        signFlowId, fileId, shortUrl = getSignUrl(orgIdCard=credit_code, creditId=id_card, fileId=file_id, env=self.env)
+        self.console.print(f'新的签约地址: {shortUrl}')
+        sql = f"update `xk-contract`.`sf_sign_flow` set third_flow_id = '{signFlowId}', sign_flow_phase = 'NEW',  third_file_id = '{fileId}', sign_url = '{shortUrl}' where is_delete = 0 and "
+        self.console.print(f'[green]{sql}[/green]id = [bold red]{id}[/bold red]')
+            
