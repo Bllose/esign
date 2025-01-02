@@ -80,13 +80,30 @@ class blloseHttpOKE():
             logging.warning(f'获取账号信息失败，返回报文:{result}')
             return []
 
-    @timeFormatting()    
-    def get_account(self, ccy:str):
+    # @timeFormatting()    
+    def get_account(self, ccy:str) -> dict:
         """
         <h3>查看账户余额</h3>
         <p>获取交易账户中资金余额信息。</p>
         Args:
             ccy(str): 币种，比如BTC，多币种查询（20个），逗号分割
+        Returns:
+            accountInfo(dict): 账户信息
+                - uTime(int/str): 查询时间
+                - totalEq(str): 账户余额（权益/美金）
+                - details(list): 详情
+                    > ccy(str): 币种
+                    > eq(str):  余额（权益/当前币种)
+                    > cashBal(str): 余额
+                    > uTime(str): 余额币种更新时间
+                    > disEq(str): 余额（币种折算美金）
+                    > availBal(str): 可用余额（当前币种）
+                    > frozenBal(str): 币种占用金额（已挂单等）
+                    > ordFrozen(str): 挂单冻结数(现货模式/现货和合约模式/跨币种保证金模式)
+                    > accAvgPx(str): 现货累计成本价 单位 USD
+                    > totalPnl(str): 现货累计收益，单位 USD
+                    > spotUpl(str): 现货未实现收益，单位 USD
+                    > spotUplRatio(str): 现货未实现收益率
         """
         result = self.accountAPI.get_account(ccy=ccy)
         return result
@@ -145,3 +162,4 @@ class blloseHttpOKE():
 if __name__ == '__main__':
     account_info = blloseHttpOKE().get_account(ccy='ETH')
     print(account_info)
+

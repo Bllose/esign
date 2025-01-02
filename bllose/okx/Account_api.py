@@ -1,5 +1,5 @@
-from .client import Client
-from .consts import *
+from bllose.okx.client import Client
+from bllose.okx.consts import *
 
 
 class AccountAPI(Client):

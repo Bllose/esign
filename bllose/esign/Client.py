@@ -189,7 +189,7 @@ class eqb_sign():
                 - code(str): 返回编码
                 - reason(str): 返回信息
         ```
-        file_path = r'\to\your\file\path'
+        file_path = r'\to\\your\file\\path'
         fileName = r'your_file_name.pdf'
         absPath = file_path + os.sep + fileName
 

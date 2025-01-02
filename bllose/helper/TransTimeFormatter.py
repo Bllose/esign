@@ -16,33 +16,26 @@ def time_formatting(target):
         return {key:time_formatting(value) for key, value in target.items() if value is not None}
     if is_timestamp(target):
         return timestamp2formattedtime(float(target))
-    elif is_java_timestamp(target):
-        return timestamp2formattedtime(int(target)/1000)
     return target
 
 def timestamp2formattedtime(target):
     """
     将int或float格式的时间戳转化为格式化时间字符串
     """
+    ok = target < 3733510181
+    while not ok:
+        target = target / 10
+        ok = target < 3733510181
     dt = datetime.fromtimestamp(target)
     return dt.strftime('%Y-%m-%d %H:%M:%S.%f')
 
 def is_timestamp(target):
     try:
         target = float(target)
-        return 567993600 < target < 10000000000
+        return 567993600 < target < 10000000000000
     except (ValueError, OverflowError):
         return False     
     return False
-
-def is_java_timestamp(target):
-    try:
-        target = int(target)
-        return 567993600000 < target < 10000000000000
-    except (ValueError, OverflowError):
-        return False     
-    return False
-
 
 
 def timeFormatting():
@@ -58,6 +51,6 @@ def timeFormatting():
     return decorator
 
 if __name__ == '__main__':
-    target = {'uTime': '1732443783244'}
+    target = {'uTime': '1733510181123'}
     result = time_formatting(target)
     print(result)
