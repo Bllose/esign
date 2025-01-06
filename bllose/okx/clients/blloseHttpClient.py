@@ -18,6 +18,7 @@ import bllose.okx.Finance_api as Finance
 import bllose.okx.Copytrading_api as Copytrading
 import bllose.okx.Recurring_api as Recurring
 import bllose.okx.SprdApi_api as Sprd
+from bllose.helper.TransTimeFormatter import timeFormatting
 
 class blloseHttpOKE():
     @bConfig()
@@ -33,6 +34,7 @@ class blloseHttpOKE():
         self.tradingDataAPI = TradingData.TradingDataAPI(self.api_key, self.secret_key, self.passphrase, False, self.flag)
         self.fundingAPI = Funding.FundingAPI(self.api_key, self.secret_key, self.passphrase, False, self.flag)
         self.convertAPI = Convert.ConvertAPI(self.api_key, self.secret_key, self.passphrase, False, self.flag)
+        # 市场相关数据查询
         self.marketAPI = Market.MarketAPI(self.api_key, self.secret_key, self.passphrase, True, self.flag)
         self.publicAPI = Public.PublicAPI(self.api_key, self.secret_key, self.passphrase, False, self.flag)
         self.tradeAPI = Trade.TradeAPI(self.api_key, self.secret_key, self.passphrase, False, self.flag)
@@ -52,6 +54,94 @@ class blloseHttpOKE():
         self.recurring = Recurring.RecurringAPI(self.api_key, self.secret_key, self.passphrase, False, self.flag)
         # 系统状态API(仅适用于实盘) system status
         self.status = Status.StatusAPI(self.api_key, self.secret_key, self.passphrase, False, self.flag)
+
+    # @timeFormatting()
+    def marked_candlesticks(self, instId: str, after: str = '', before: str = '', bar:str = '', limit: str = '') -> list:
+        """
+        获取交易K线数据  
+
+        指数K线数据每个粒度最多可获取最近1,440条。
+
+        Args:
+            instId(str): 现货指数，如 BTC-USD
+            before(str): 
+            after(str):
+            bar(str): 时间粒度，默认值1m; [1m/3m/5m/15m/30m/1H/2H/4H/6H/12H/1D/1W/1M/3M]
+            limit(str): 分页返回的结果集数量，最大为100，不填默认返回100条
+        Results:
+            data(list): k线图数据
+                - 0: 时间戳
+                - 1: 开盘价
+                - 2: 最高价
+                - 3: 最低价
+                - 4: 收盘价
+                - 5: 交易量，以"张"为单位,如果是币币/币币杠杆，数值为交易货币的数量。
+                - 6: 交易量，以币为单位, 如果是币币/币币杠杆，数值为计价货币的数量。
+                - 7: 交易量，以计价货币为单位
+                - 8: 0-未结束；1-已结束
+        """
+        result = self.marketAPI.get_candlesticks(instId=instId, before=before, after=after, bar=bar, limit=limit)
+        if result['code'] != '0':
+            logging.warning(f'查询k线数据失败，返回报文信息:{result['msg']}')
+            return []
+        return result['data']
+
+    @timeFormatting()
+    def marked_history_candlesticks(self, instId: str, after: str = '', before: str = '', bar:str = '', limit: str = '') -> list:
+        """
+        获取K线历史数据  
+
+        指数K线数据每个粒度最多可获取最近1,440条。
+
+        Args:
+            instId(str): 现货指数，如 BTC-USD
+            before(str): 
+            after(str):
+            bar(str): 时间粒度，默认值1m; [1m/3m/5m/15m/30m/1H/2H/4H/6H/12H/1D/1W/1M/3M]
+            limit(str): 分页返回的结果集数量，最大为100，不填默认返回100条
+        Results:
+            data(list): k线图数据
+                - 0: 时间戳
+                - 1: 开盘价
+                - 2: 最高价
+                - 3: 最低价
+                - 4: 收盘价
+                - 5: 0-未结束；1-已结束
+        """
+        result = self.marketAPI.get_history_candlesticks(instId=instId, before=before, after=after, bar=bar, limit=limit)
+        if result['code'] != '0':
+            logging.warning(f'查询k线数据失败，返回报文信息:{result['msg']}')
+            return []
+        return result['data']
+
+    @timeFormatting()
+    def marked_index_candlesticks(self, instId: str, after: str = '', before: str = '', bar:str = '', limit: str = '') -> list:
+        """
+        获取指数K线数据  
+
+        指数K线数据每个粒度最多可获取最近1,440条。
+
+        Args:
+            instId(str): 现货指数，如 BTC-USD
+            before(str): 
+            after(str):
+            bar(str): 时间粒度，默认值1m; [1m/3m/5m/15m/30m/1H/2H/4H/6H/12H/1D/1W/1M/3M]
+            limit(str): 分页返回的结果集数量，最大为100，不填默认返回100条
+        Results:
+            data(list): k线图数据
+                - 0: 时间戳
+                - 1: 开盘价
+                - 2: 最高价
+                - 3: 最低价
+                - 4: 收盘价
+                - 5: 0-未结束；1-已结束
+        """
+        result = self.marketAPI.get_index_candlesticks(instId=instId, before=before, after=after, bar=bar, limit=limit)
+        if result['code'] != '0':
+            logging.warning(f'查询k线指数数据失败，返回报文信息:{result['msg']}')
+            return []
+        return result['data']
+
 
     def get_account_instruments(self, instType:str, instId:str = '') -> list:
         """
@@ -160,6 +250,7 @@ class blloseHttpOKE():
         return response
 
 if __name__ == '__main__':
-    account_info = blloseHttpOKE().get_account(ccy='ETH')
-    print(account_info)
+    client = blloseHttpOKE()
+    result = client.marked_candlesticks(instId='BTC-USDT',bar='3M', limit=4)
+    print(result)
 
