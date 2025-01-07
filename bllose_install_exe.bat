@@ -1,0 +1,1 @@
+ pyinstaller -F bllose/cmds/bllose_cmd.py
