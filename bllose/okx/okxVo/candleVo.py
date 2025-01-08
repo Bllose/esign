@@ -9,6 +9,8 @@ def format_timestamp(ts):
 
 
 class CandleVo(BaseModel):
+    # 类型名称
+    instType: str = None
 
     # 开始时间，Unix时间戳的毫秒数格式
     ts: int = None

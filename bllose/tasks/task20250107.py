@@ -20,23 +20,11 @@ def make_flowid(zulin_fileId: str, gonghuo_fileId:str,
             },
             "signFields": [
                 {
-                "normalSignFieldConfig": {
-                    "signFieldPosition": {
-                    "positionX": 425.935,
-                    "positionY": 368.91202,
-                    "positionPage": "3"
-                    },
-                    "autoSign": False,
-                    "signFieldStyle": 1
-                },
-                "fileId": zulin_fileId
-                },
-                {
                 "signFieldType": 1,
                 "remarkSignFieldConfig": {
                     "signFieldPosition": {
-                    "positionX": 380,
-                    "positionY": 400.91202,
+                    "positionX": 350,
+                    "positionY": 393,
                     "positionPage": "3"
                     },
                     "autoSign": False,
