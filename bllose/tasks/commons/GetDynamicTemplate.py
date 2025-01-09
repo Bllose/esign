@@ -3,6 +3,7 @@ import time
 import logging
 from bllose.esign.Client import eqb_sign
 from bllose.esign.Client import md5_base64_file
+from bllose.esign.esign_enums.env_enum import EqbEnum
 
 
 def uploadOneFile(abs_path:str, env:str = 'test'):
@@ -48,7 +49,7 @@ def getEditUrl4AllFilesUnderTheRoot(root_path:str, env:str = 'test', convertToHT
         env(str): 处理环境，默认测试环境 test
         convertToHTML(bool): 是否转化为html
     Return:
-        editInfoList(list): 返回编辑地址列表
+        list: 返回编辑地址列表
             - fileName(str): 文件名字
             - templateId(str): 模版ID
             - editUrl(str): 编辑地址 
@@ -76,7 +77,7 @@ def upload_the_file(root:str, curFileName: str, client: eqb_sign, convertToHTML:
         convertToHTML(bool): 是否要转化为HTML。True：转化为html；False：不转化
         resultList(list): 收集上传结果，可不传
     Returns:
-        result(tuple): 若存在则返回模版ID,文件ID
+        tuple: 若存在则返回模版ID,文件ID
             - templateId(str): 模版ID，不存在则为空字符串
             - fileId(str): 文件ID，不存在则返回空字符串
     """
@@ -117,6 +118,21 @@ def upload_the_file(root:str, curFileName: str, client: eqb_sign, convertToHTML:
         return templateId, fileId
 
     return '', ''
+
+def uploadAndConvert2Html(abs_path: str, convertToHTML: bool = False, env: str = 'test'):
+    """
+    上传本地文件，并可以转化为HTML的模版
+    Args:
+        abs_path(str) : 上传文件的绝对路径
+        convertToHTML(bool): 是否转化为HTML模版
+        env(str): 环境
+    """
+    root = os.path.dirname(abs_path)
+    fileName = os.path.basename(abs_path)
+    client = eqb_sign(env=EqbEnum.of(env).value)
+    templateId, fileId = upload_the_file(root=root, curFileName=fileName, client=client, convertToHTML=convertToHTML)
+    return templateId, fileId
+
 
 def getEditUrlByTemplateId(templateIdList:list, env:str = 'test') -> list:
     """

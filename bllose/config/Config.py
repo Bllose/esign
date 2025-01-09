@@ -4,6 +4,7 @@ import os
 import logging
 import json
 from enum import Enum
+from pathlib import Path
 
 class scope(Enum):
     """
@@ -66,7 +67,7 @@ class Config():
 
         # 当前文件的绝对路径
         exe_path = sys.argv[0]
-        root_path = os.path.abspath(os.sep)
+        root_path = Path(exe_path).anchor
         """
         默认逻辑下尝试寻找可以加载的配置文件
         """

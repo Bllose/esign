@@ -26,6 +26,7 @@ class EqbEnum(StrEnum):
 if __name__ == '__main__':
     print(type(EqbEnum.of('test')))
     print(type(EqbEnum.of('test').value))
+    print(EqbEnum.of('test').value)
     print(EqbEnum.of('pro'))
     print(EqbEnum.of('pro1').name)
     print(EqbEnum.of('pro1').msg)

@@ -310,7 +310,7 @@ class eqb_sign():
         Args:
             templateId(str): 模版ID
         Returns:
-            url(str): 编辑url (短连接，24小时有效)
+            str: 编辑url (短连接，24小时有效)
         """
         shortUrl, _ = self.docTemplateEditUrlAll(templateId)
         return shortUrl
@@ -321,7 +321,7 @@ class eqb_sign():
         Args:
             templateId(str): 模版ID
         Returns:
-            url(tuple): 编辑url 24小时有效
+            tuple: 编辑url 24小时有效
                 - shortUrl(str): 短连接
                 - longUrl(str): 长连接
         """

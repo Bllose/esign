@@ -6,7 +6,7 @@ import time
 import json
 from bllose.tasks.commons.GetSignUrlAfterMobileChanged import getTheNewSignUrl
 from bllose.tasks.commons.leaseContract import getSignUrl
-from bllose.tasks.commons.GetDynamicTemplate import uploadOneFile
+from bllose.tasks.commons.GetDynamicTemplate import uploadOneFile, uploadAndConvert2Html
 from bllose.tasks.commons.CopyTemplate import copy
 from bllose.esign.Client import eqb_sign
 from bllose.esign.esign_enums.file_status import FileStatus
@@ -119,6 +119,7 @@ class AutoLoadCommandSet(CommandSet):
 
 
     upload_parser = cmd2.Cmd2ArgumentParser()
+    upload_parser.add_argument('-c', '--convert', action='store_true', help='转化为HTML模版')
     upload_parser.add_argument('params', nargs='+', help='输入上传文件的绝对路径')
     @cmd2.with_argparser(upload_parser)
     def do_upload(self, args):
@@ -130,8 +131,26 @@ class AutoLoadCommandSet(CommandSet):
             abs_path = os.getcwd + os.sep + abs_path
             if not os.path.isfile(abs_path):
                 self.console.print(f'文件不存在: [bold red]{args.params[0]}[/bold red]')
-        fileName, fileId = uploadOneFile(abs_path=abs_path, env=self.env)
-        self.console.print(f'[green]{fileName}[/green] -> fileId: [bold red]{fileId}[/bold red]')
+        if args.convert:
+            templateId, fileId = uploadAndConvert2Html(abs_path=os.path.abspath(abs_path), 
+                                                       convertToHTML=True, 
+                                                       env=self.env)
+            result = Text()
+            result.append("模版ID: ", style="bold yellow")
+            result.append(templateId, style="italic green")
+            result.append("\n")
+            result.append("文件ID: ", style="bold yellow")
+            result.append(fileId, style="italic green")
+            panel = Panel(result, title='上传文件并转化为HTML模版')
+            self.console.print(panel)
+        else:
+            fileName, fileId = uploadOneFile(abs_path=abs_path, env=self.env)
+            # self.console.print(f'[green]{fileName}[/green] -> fileId: [bold red]{fileId}[/bold red]')
+            result = Text()
+            result.append("文件ID: ", style="bold yellow")
+            result.append(fileId, style="italic green")
+            panel = Panel(result, title=fileName)
+            self.console.print(panel)
 
     person_parser = cmd2.Cmd2ArgumentParser()
     person_parser.add_argument('params', nargs='*', help='身份证')
@@ -175,7 +194,6 @@ class AutoLoadCommandSet(CommandSet):
             result.append(doc['fileUrl'], style=urlStyle)
             panel = Panel(result, title=doc['fileName'])
             self.console.print(panel)
-            print(f"\033]8;;{doc['fileUrl']}\033\\Click here to visit ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ fileId url\033]8;;\033\\")
 
     
     template_edit_url_parser = cmd2.Cmd2ArgumentParser()
@@ -191,7 +209,13 @@ class AutoLoadCommandSet(CommandSet):
         shortUrl = template_function(env=self.env, templateId= templateId)
         # 具体执行的逻辑
         if shortUrl.startswith('http'):
-            self.console.print(f'[underline blue]{shortUrl}[/underline blue]')
+            # self.console.print(f'[underline blue]{shortUrl}[/underline blue]')
+            urlStyle = Style(color="#0000FF", underline=True)
+            result = Text()
+            result.append("模版编辑地址: ", style="bold yellow")
+            result.append(shortUrl, style=urlStyle)
+            panel = Panel(result, title=templateId)
+            self.console.print(panel)
         else:
             self.console.print('获取模版编辑地址失败!', style = 'reverse')
 
