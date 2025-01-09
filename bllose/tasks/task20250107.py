@@ -5,6 +5,18 @@ def make_flowid(zulin_fileId: str, gonghuo_fileId:str,
                 personName: str, personId: str, personMobile: str,
                 companyName: str, companyId: str, companySealId: str,
                 tclSealId:str = "66cfa62a-8833-41c2-91fb-11d997abf77d", env: str = 'test') -> tuple:
+    
+    remarkContent = "2024年12月20日"
+    tclCompanyName = "惠州TCL光伏科技有限公司"
+    tclCompanyId = "91441303MA7FTL1J0D"
+
+    if companyId == '91360313MAD299JU2J':
+        remarkContent = "2024年12月27日"
+    
+    if tclSealId == '402e6c69-2c3e-4b44-888c-95cba7e3901d':
+        tclCompanyName = 'TCL光伏科技（深圳）有限公司'
+        tclCompanyId = '91440300MA5H9NX89R'
+
     request = {
         "attachments": [],
         "signFlowConfig": {
@@ -28,7 +40,7 @@ def make_flowid(zulin_fileId: str, gonghuo_fileId:str,
                     "positionPage": "3"
                     },
                     "autoSign": False,
-                    "remarkContent": "2024年12月20日",
+                    "remarkContent": remarkContent,
                     "movableSignField": True,
                     "inputType": 2
                 },
@@ -82,8 +94,8 @@ def make_flowid(zulin_fileId: str, gonghuo_fileId:str,
                 {
                 "normalSignFieldConfig": {
                     "signFieldPosition": {
-                    "positionX": 380,
-                    "positionY": 250,
+                    "positionX": 290,
+                    "positionY": 380,
                     "positionPage": "1"
                     },
                     "autoSign": False,
@@ -100,7 +112,7 @@ def make_flowid(zulin_fileId: str, gonghuo_fileId:str,
                 "signOrder": 1
             },
             "orgSignerInfo": {
-                "orgName": "惠州TCL光伏科技有限公司",
+                "orgName": tclCompanyName,
                 "transactorInfo": {
                 "psnAccount": personMobile,
                 "psnInfo": {
@@ -112,15 +124,15 @@ def make_flowid(zulin_fileId: str, gonghuo_fileId:str,
                 },
                 "orgInfo": {
                 "orgIDCardType": "CRED_ORG_USCC",
-                "orgIDCardNum": "91441303MA7FTL1J0D"
+                "orgIDCardNum": tclCompanyId
                 }
             },
             "signFields": [
                 {
                 "normalSignFieldConfig": {
                     "signFieldPosition": {
-                    "positionX": 290,
-                    "positionY": 380,
+                    "positionX": 380,
+                    "positionY": 250,
                     "positionPage": "1"
                     },
                     "autoSign": False,
@@ -153,20 +165,33 @@ def make_flowid(zulin_fileId: str, gonghuo_fileId:str,
 
 @bConfig()
 def task_entity(config):
-    zulin_fileId = '830f9c3a6e5d4956b7c0eaf3ad28b574'
-    gonghuo_fileId = '11353865f3db4e988e9d0dd20e4b5bc6'
-    personName = config['person']['me']['name']
-    personId = config['person']['me']['idCard']
-    personMobile = config['person']['me']['mobile']
-    companyName = '九江泰盈惠合新能源科技有限公司'
-    companyId = '91360430MACL8M6Q2B'
-    companySealId = 'b51b9a3d-1f6b-4212-9738-c25d1f2faed5'
-    tclSealId = '66cfa62a-8833-41c2-91fb-11d997abf77d'
-    signFlowId, shortUrl = make_flowid(zulin_fileId=zulin_fileId, gonghuo_fileId = gonghuo_fileId,
-                                       personName=personName, personId=personId, personMobile=personMobile, 
-                                        companyName=companyName, companyId=companyId, companySealId=companySealId,
-                                        tclSealId=tclSealId)
-    print(signFlowId, shortUrl)
+    from bllose.helper.excelHelper import fetch_rows
+
+    rows = fetch_rows(r'C:\Users\bllos\Desktop\太平石化合同重新签约生产解决\太平石化任务薄.xlsx')
+    person = 'liang_chen'
+    personName = config['person'][person]['name']
+    personId = config['person'][person]['idCard']
+    personMobile = config['person'][person]['mobile']
+    for row in rows:
+        batch_no = row[0]
+        zulin_fileId = row[1]
+        gonghuo_fileId = row[2]
+        if zulin_fileId is None or len(zulin_fileId) < 1 or gonghuo_fileId is None or len(gonghuo_fileId) < 1:
+            continue
+        companyName = row[3]
+        companyId = row[4]
+        companySealId = row[5]
+        tclSealId = row[6]
+        tpsh007_id = row[7]
+        tpsh008_id = row[8]
+
+        signFlowId, shortUrl = make_flowid(zulin_fileId=zulin_fileId, gonghuo_fileId = gonghuo_fileId,
+                                        personName=personName, personId=personId, personMobile=personMobile, 
+                                            companyName=companyName, companyId=companyId, companySealId=companySealId,
+                                            tclSealId=tclSealId, env='pro')
+        print(f'{batch_no}:{companyName} -> {shortUrl}')
+        print(f"update `xk-contract`.`sf_sign_flow` set third_flow_id = '{signFlowId}', sign_flow_phase = 'NEW', sign_url = '{shortUrl}' where id = '{tpsh007_id}';")
+        print(f"update `xk-contract`.`sf_sign_flow` set third_flow_id = '{signFlowId}', sign_flow_phase = 'NEW', sign_url = '{shortUrl}' where id = '{tpsh008_id}';")
 
 
 if __name__ == '__main__':
