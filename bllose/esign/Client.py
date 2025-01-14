@@ -84,7 +84,8 @@ class eqb_sign():
             - CRED_PSN_CH_MACAO: 澳门来往大陆通行证
             - CRED_PSN_CH_TWCARD: 台湾来往大陆通行证
             - CRED_PSN_PASSPORT: 护照
-
+        Returns:
+            dict: 个人认证信息
         """
         current_path = r'/v3/persons/identity-info?'
         if psnId is not None and len(psnId) > 1:
@@ -101,6 +102,58 @@ class eqb_sign():
         else:
             logging.error(f'获取个人信息失败，请求路径{current_path} 返回报文{response_json}')
             return {}
+        
+    def identity_detail_v2(self, flowid:str, accountId:str = '', orgId: str = '') -> list:
+        """
+        <h>查询签署中认证信息</h>  
+        开发者可以调用此接口获取用户实名/意愿认证过程中使用腾讯云刷脸、快捷刷脸、微信小程序刷脸返回的刷脸照片信息以及意愿认证使用智能视频认证的视频信息等。
+        Args:
+            flowid(str): 签署流程ID
+            accountId(str): 签署人账号ID
+            orgId(str): 签署主体ID
+        Returns:
+            list: 认证信息列表
+                - identityBizType(str): 认证类型 1：意愿认证 2：实名认证
+                - identityDetail(str): 实名/意愿认证数据
+                - identityType(str): 实名/意愿认证方式
+                - identityFlowId(str): 签署中的实名/意愿认证ID
+        ```
+        意愿认证方式：
+        CODE_SMS 短信验证码
+        CODE_VOICE 语言短信验证码
+        FACE_ZHIMA_XY 支付宝刷脸
+        FACE_TECENT_CLOUD_H5 腾讯云刷脸FACE_FACE_LIVENESS_RECOGNITION 快捷刷脸
+        FACE_WE_CHAT_FACE 微信小程序刷脸
+        FACE_ALI_MINI_PROGRAM 支付宝小程序刷脸
+        FACE_AUDIO_VIDEO_DUAL 支付宝智能视频认证
+        VIDEO_WE_CHAT_VIDEO_DUAL 微信智能视频认证
+        实名认证方式：
+        INDIVIDUAL_TELECOM_3_FACTOR 个人运营商三要素
+        INDIVIDUAL_BANKCARD_4_FACTOR 个人银行卡四要素
+        FACEAUTH_ZMXY 支付宝刷脸
+        FACEAUTH_TECENT_CLOUD 腾讯云刷脸
+        FACEAUTH_ESIGN 快捷刷脸
+        FACEAUTH_WE_CHAT_FACE 微信小程序刷脸
+        INDIVIDUAL_ALIPAY_ONECLICK 个人支付宝一键认证（支付宝小程序实名）
+        INDIVIDUAL_ARTIFICIAL 个人人工实名
+        ```
+        """
+        current_path = r'/v2/signflows/identity/detail'
+
+        body = {
+                "flowId": flowid,
+                "accountId": accountId,
+                "authorizedAccountId": orgId
+            }
+
+        self.establish_head_code(json.dumps(body), current_path)
+        response_json = self.getResponseJson(bodyRaw=json.dumps(body), 
+                                             current_path=current_path)
+        if response_json['code'] == 0:
+            return response_json['data']
+        else:
+            logging.error(f'获取个人信息失败, 返回报文{response_json}')
+            return []
 
     def psn_auth_url_v3(self, psnId:str = None):
         """
@@ -367,7 +420,7 @@ class eqb_sign():
             templateId(str): 模版ID
             encryption(str): 网页访问秘钥
         Returns:
-            templateDetail(dict): 模版详情
+            dict: 模版详情
         """
         
         current_path = f'/webserver/v3/api/doc-templates/{templateId}/detail?encryption={quote(encryption, safe='')}'
@@ -411,7 +464,7 @@ class eqb_sign():
             flowId(str): e签宝的流水号
             mobile(str): 执行人账号。 因为e签宝上通常将个人电话作为账号，所以这里通常是输入手机号
         Returns:
-            shortUrl(str): 签约地址
+            str: 签约地址
         """
         return self.getH5Url(mobile, flowId)
     
@@ -443,7 +496,7 @@ class eqb_sign():
             psnId(str): 签署操作人账号ID（个人账号ID）。二选一
             thirdFlowId(str): 当前账号参与的签约流程ID
         Returns:
-            shortUrl(str): 合同签署流程
+            str: 合同签署流程
         """
         if psnAccount is None and psnId is None:
             raise ValueError('手机号码和操作人账号ID不能同时为空')
@@ -477,7 +530,7 @@ class eqb_sign():
             idNumber(str): 个人身份证
             mobile(str): 个人电话
         Returns:
-            accountId(str): 个人用户ID
+            str: 个人用户ID
         """
         current_path = r'/v1/accounts/createByThirdPartyUserId'
         request_dict = {
@@ -505,7 +558,7 @@ class eqb_sign():
             name(str): 签署人/执行人名称
             mobile(str): 电话号码/e签宝账号
         Retruns:
-            data(dict): 更新结果
+            dict: 更新结果
                 - mobile(str): 最新电话
                 - name(str): 最新姓名
                 - accountId(str): 当前账号id
