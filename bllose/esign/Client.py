@@ -71,9 +71,9 @@ class eqb_sign():
     def person_info_v3(self, psnId:str = None, 
                     psnAccount:str = None, 
                     psnIDCardNum:str = None, 
-                    psnIDCardType:str = 'CRED_PSN_CH_IDCARD'):
+                    psnIDCardType:str = 'CRED_PSN_CH_IDCARD') -> dict:
         """
-        V3查询个人认证信息
+        V3查询个人认证信息, 三种查询方式：1、账号ID， 2、个人账号（手机、邮箱），3、个人证件和证件类型
         Args:
             psnId(str): 个人账号ID
             psnAccount(str): 个人账号标识（手机号或邮箱）
@@ -100,7 +100,7 @@ class eqb_sign():
             return response_json['data']
         else:
             logging.error(f'获取个人信息失败，请求路径{current_path} 返回报文{response_json}')
-            return []
+            return {}
 
     def psn_auth_url_v3(self, psnId:str = None):
         """
@@ -422,7 +422,7 @@ class eqb_sign():
             accountId(str): 签署操作人账号ID（个人账号ID）
             thirdFlowId(str): 当前账号参与的签约流程ID
         Return:
-            shortUrl(str): 合同签署流程
+            str: shortUrl 合同签署流程
         """
         current_path = f'/v1/signflows/{thirdFlowId}/executeUrl?accountId={accountId}'
         self.establish_head_code(None, current_path, 'GET')
@@ -534,7 +534,7 @@ class eqb_sign():
         Args:
             bodyRaw(st): json请求报文的字符串
         Returns:
-            flowId(str): 签约流水号
+            str: flowId 签约流水号
         """
         current_path = r'/api/v2/signflows/createFlowOneStep'
         self.establish_head_code(bodyRaw, current_path)
@@ -585,11 +585,13 @@ class eqb_sign():
             data = response_json['data']
             return data['fileId'], data['downloadUrl']
     
-    def createByDocTemplate(self, req) -> tuple:
+    def createByDocTemplate(self, req: str) -> tuple:
         """
         模版制作文件接口
-        @param req: 组装好的请求报文，包含 fileName, docTemplateId, components
-        返回 fileId, fileDownloadUrl
+        Args:
+            req(str): 请求报文的json字符串。包含必要参数：fileName, docTemplateId, components
+        Returns:
+            tuple: fileId, fileDownloadUrl
         """
         current_path = r'/v3/files/create-by-doc-template'
         self.establish_head_code(req, current_path)
@@ -597,6 +599,9 @@ class eqb_sign():
         if response_json['code'] == 0:
             data = response_json['data']
             return data['fileId'], data['fileDownloadUrl']
+        else:
+            logging.error(f'制作合同文件失败，请求报文:{req} 返回报文:{response_json}')
+            return '', ''
         
     def createByFile(self, req) -> str:
         """

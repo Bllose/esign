@@ -8,6 +8,7 @@ from bllose.tasks.commons.GetSignUrlAfterMobileChanged import getTheNewSignUrl
 from bllose.tasks.commons.leaseContract import getSignUrl
 from bllose.tasks.commons.GetDynamicTemplate import uploadOneFile, uploadAndConvert2Html
 from bllose.tasks.commons.CopyTemplate import copy
+from bllose.tasks.commons.auth4Info import establish_contract_file
 from bllose.esign.Client import eqb_sign
 from bllose.esign.esign_enums.file_status import FileStatus
 from bllose.esign.esign_enums.env_enum import EqbEnum
@@ -32,6 +33,52 @@ class AutoLoadCommandSet(CommandSet):
         self.env = 'test'
         set_title("e签宝 -> 测试环境")
         self.local_save_path = '/temp/download'
+
+    contractinfo_parser = cmd2.Cmd2ArgumentParser()
+    # contractinfo_parser.add_argument('-o', '--orgId', action='store_true', help='通过orgId进行查询')
+    contractinfo_parser.add_argument('param', nargs=1, help='签约请求参数:companyName,mobile')
+    @cmd2.with_argparser(contractinfo_parser)
+    @cmd2.with_category('e签宝任务 - 信息使用授权书')
+    def do_contractinfo(self, args):
+        params = args.param[-1]
+        paramSplit = params.split(',')
+        companyName = paramSplit[0]
+        mobile = paramSplit[1]
+        id = paramSplit[2]
+        if self.env == 'pro':
+            templateId = '0d211ef74d3841458162539125129898'
+        else:
+            templateId = '7a6db35bdca948e5a434c77cd31d94d4'
+
+        flowId, shortUrl, fileId = establish_contract_file(companyName=companyName, templateId=templateId, mobile=mobile, env=self.env)
+
+        sql = f"update `xk-contract`.sf_sign_flow set third_flow_id = '{flowId}', sign_flow_phase = 'NEW', sign_url = '{shortUrl}', third_file_id = '{fileId}' where id = {id}; "
+
+        conclusion = Text()
+        conclusion.append("签约地址: ", style="bold yellow")
+        conclusion.append(shortUrl, style="bold green")
+        conclusion.append("\n")
+        conclusion.append("工单SQL: ", style="bold yellow")
+        conclusion.append(sql, style="bold green")
+        panel = Panel(conclusion, title="信息使用授权书")
+        self.console.print(panel)
+
+    @cmd2.with_category('e签宝任务 - 信息使用授权书')
+    def do_contractinfosql(self, args):
+        self.console.print("select concat_ws(',', company_name, ex_customer_mobile, id)")
+        self.console.print("from (")
+        self.console.print("select a.ex_customer_name, ")
+        self.console.print("AES_DECRYPT(from_base64(substr(a.ex_customer_mobile,3)),from_base64('XDM4Vvla+6kxP++4yOXb5A==')) 'ex_customer_mobile', ")
+        self.console.print("AES_DECRYPT(from_base64(substr(a.ex_customer_idno,3)),from_base64('XDM4Vvla+6kxP++4yOXb5A==')) 'ex_customer_idno',")
+        self.console.print("d.company_name, e.id, e.template_code, e.image_code ")
+        self.console.print("from `xk-order`.`order` a")
+        self.console.print("left join `xk-order`.`order_product_config` b on a.order_no = b.order_no and b.is_delete = false")
+        self.console.print("left join `xk-order`.`product_company` d on b.project_company_id = d.id and d.is_delete = false")
+        self.console.print("left join `xk-contract`.`sf_sign_flow` e on a.order_no = e.object_no and e.is_delete = false")
+        self.console.print("where a.is_delete = false")
+        self.console.print("and e.scene_code = 'PCI001'")
+        self.console.print("and e.image_code = 'PC001#image1'")
+        self.console.print(") final;")
 
     company_parser = cmd2.Cmd2ArgumentParser()
     company_parser.add_argument('-o', '--orgId', action='store_true', help='通过orgId进行查询')

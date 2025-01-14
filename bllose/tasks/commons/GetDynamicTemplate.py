@@ -116,7 +116,6 @@ def upload_the_file(root:str, curFileName: str, client: eqb_sign, convertToHTML:
         logging.debug(f'文件 ->{fileName}<- 生成模版ID ->{templateId}<- 编辑地址 ->{editUrl}<-')
         resultList.append({'fileName': fileName, 'templateId': templateId, 'editUrl': editUrl, 'fileId': fileId})
         return templateId, fileId
-
     return '', ''
 
 def uploadAndConvert2Html(abs_path: str, convertToHTML: bool = False, env: str = 'test'):
