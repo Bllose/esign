@@ -6,7 +6,7 @@ from bllose.esign.Client import md5_base64_file
 from bllose.esign.esign_enums.env_enum import EqbEnum
 
 
-def uploadOneFile(abs_path:str, env:str = 'test'):
+def uploadOneFile(abs_path:str, env:str = 'test') -> tuple:
     if not os.path.exists(abs_path) or not os.path.isfile(abs_path):
         logging.error(f"文件[{abs_path}]不存在!")
         return "", ""
@@ -34,6 +34,7 @@ def uploadOneFile(abs_path:str, env:str = 'test'):
             counter += 1
         
         return fileName, fileId
+    return '', ''
 
 
 def getEditUrl4AllFilesUnderTheRoot(root_path:str, env:str = 'test', convertToHTML:bool = True) -> list:
@@ -118,13 +119,15 @@ def upload_the_file(root:str, curFileName: str, client: eqb_sign, convertToHTML:
         return templateId, fileId
     return '', ''
 
-def uploadAndConvert2Html(abs_path: str, convertToHTML: bool = False, env: str = 'test'):
+def uploadAndConvert2Html(abs_path: str, convertToHTML: bool = False, env: str = 'test') -> tuple:
     """
     上传本地文件，并可以转化为HTML的模版
     Args:
         abs_path(str) : 上传文件的绝对路径
         convertToHTML(bool): 是否转化为HTML模版
         env(str): 环境
+    Returns:
+        tuple: templateId, fileId
     """
     root = os.path.dirname(abs_path)
     fileName = os.path.basename(abs_path)

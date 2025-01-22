@@ -48,6 +48,21 @@ class eqb_sign():
         self.app_key = eqb['appKey']
         self.type = 'POST'
 
+
+    def keyword_position(self, fileId:str, keyword_list:list) -> list:
+        current_path = f'/v3/files/{fileId}/keyword-positions'
+        body = {
+                "keywords": keyword_list
+            }
+        bodyRaw = json.dumps(body)
+        self.establish_head_code(bodyRaw, current_path)
+        response_json = self.getResponseJson(bodyRaw=bodyRaw, current_path=current_path)
+        if response_json['code'] == 0:
+            return response_json['data']
+        else:
+            logging.error(f'获取关键字位置失败，请求路径{current_path} 返回报文{response_json}')
+            return []
+
     def person_info_v1_accountId(self, accountId):
         current_path = f'/v1/accounts/{accountId}'
         self.establish_head_code(None, current_path, 'GET')
