@@ -111,12 +111,12 @@ def process(creditId:str, origin_file_path:str, env='test'):
     
     orderNoList = []
     try:
-        with open(origin_file_path, 'r') as file, open(r'D:\temp\taskrecorder_shan.txt', 'w') as recorderFile:
+        with open(origin_file_path, 'r') as file, open(r'D:\temp\taskrecorder_gansuhemin.txt', 'w') as recorderFile:
             for line in file:
                 param = line.strip()  # 使用 strip() 去除每行末尾的换行符
                 orderNoList.append(task_process(param, recorderFile=recorderFile, seal_id=sealId, env=env))
-    except FileNotFoundError:
-        print(f"文件 {origin_file_path} 未找到，请检查文件路径是否正确。")
+    except FileNotFoundError as e:
+        print(f"文件未找到，请检查文件路径是否正确。{e}")
     # param = r'145580451,GF240226100105000828,35e7e643d96c441ebf0558512ebd1053'
     print("=====================================================================")
     print("=====================================================================")
@@ -128,6 +128,6 @@ def process(creditId:str, origin_file_path:str, env='test'):
 
 
 if __name__ == '__main__':
-    creditId = r'91611105MADMWD4W8N'
+    creditId = r'91621102MAE2EHGRX7'
     origin_file_path = r'D:\temp\originInfo.txt'
     process(creditId=creditId, origin_file_path=origin_file_path, env='pro')
