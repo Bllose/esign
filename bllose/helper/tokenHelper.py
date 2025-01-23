@@ -2,6 +2,13 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.backends import default_backend
 import base64
+from typing import Final
+
+
+PUBLIC_KEY: Final[str] = '''
+LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFxbHhUR3p4dlBBOWhnb3JtcHloaQpGVzE5NUp5M3RUaTVnY1FUYVUyYnRMaGNjSld6djhrOUNjV2lLQmlvOU8zQ0hlRzBNemJIRDBvSG5VaXNMZ1VkCmJVQ0pFcHRidWd4TFowQW1STkJoclNhbGNOVk95dkZ2MFBQWnFKUEZsYlZOREpIS0NSZ0NQNXhwbWV3YTRTWmUKbjRyVkRjTnhoUGRraUI3Z2ZUVVBjdHJsQjY2bmphTS9yWndYMVZHY0Q1RkpDajl5UTI1eXM5R0ZRZ3JuaXBxdQpzRkpjQk12RU00clNDQlVDbUZnbkZHOTBGSVFKUDNEaFcwY1Nmb2tqeThiblhJYzV3c3NMRW9tWXh5RW15aFgyCmZsVDRsMHA3TXRRYTZ3M3RTbm1laEpLeFhxNG9qLzRRTTJDQnN0Ym5TdHo3S3BRU1Z0WXNGZVpVWlMwKzNLR1AKK1FJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==
+'''.strip()
+
 
 def generate_key_pair():
     # 生成私钥
@@ -182,7 +189,6 @@ def load_public_key(public_key_source):
     except Exception as e:
         raise Exception(f"加载公钥失败: {str(e)}")
 
-PUBLIC_KEY = r'LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFxbHhUR3p4dlBBOWhnb3JtcHloaQpGVzE5NUp5M3RUaTVnY1FUYVUyYnRMaGNjSld6djhrOUNjV2lLQmlvOU8zQ0hlRzBNemJIRDBvSG5VaXNMZ1VkCmJVQ0pFcHRidWd4TFowQW1STkJoclNhbGNOVk95dkZ2MFBQWnFKUEZsYlZOREpIS0NSZ0NQNXhwbWV3YTRTWmUKbjRyVkRjTnhoUGRraUI3Z2ZUVVBjdHJsQjY2bmphTS9yWndYMVZHY0Q1RkpDajl5UTI1eXM5R0ZRZ3JuaXBxdQpzRkpjQk12RU00clNDQlVDbUZnbkZHOTBGSVFKUDNEaFcwY1Nmb2tqeThiblhJYzV3c3NMRW9tWXh5RW15aFgyCmZsVDRsMHA3TXRRYTZ3M3RTbm1laEpLeFhxNG9qLzRRTTJDQnN0Ym5TdHo3S3BRU1Z0WXNGZVpVWlMwKzNLR1AKK1FJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg=='
 
 if __name__ == "__main__":
     # 生成密钥对
@@ -208,17 +214,17 @@ if __name__ == "__main__":
     # print(base64_key)
     
     # 2. 测试加载Base64字符串
-    public_pem = load_public_key(PUBLIC_KEY)
-    print("\n解码后的PEM格式公钥:")
-    print(public_pem.decode('utf-8'))
+    # public_pem = load_public_key(PUBLIC_KEY)
+    # print("\n解码后的PEM格式公钥:")
+    # print(public_pem.decode('utf-8'))
 
     # 生成token
-    info_string = ""
+    info_string = "BLLOSE,张三,13800138000,370725199001011990,20250101"
     token = generate_token(private_pem, info_string)
     print("生成的token:")
     print(token)
     
     # 验证token
-    is_valid, result = verify_token(public_pem, token)
-    print("\n验证结果:", "成功" if is_valid else "失败")
-    print("详细信息:", result)
+    # is_valid, result = verify_token(public_pem, token)
+    # print("\n验证结果:", "成功" if is_valid else "失败")
+    # print("详细信息:", result)

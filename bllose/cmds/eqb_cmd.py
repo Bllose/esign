@@ -12,14 +12,8 @@ class eqb_cmd(cmd2.Cmd):
     @bConfig()
     def __init__(self, *args, config=None, command_sets=None, **kwargs):
         if 'token' not in config:
-            raise ValueError("无效的token，无法使用e签宝功能")
-        token = config['token']
-        if 'public_key_path' not in config:
-            public_key_path = "public_key.pem"
-        else:
-            public_key_path = config['public_key_path']
-
-        if not self._validate_token(token, public_key_path):
+            raise ValueError("未配置token,无法使用e签宝功能")
+        if not self._validate_token(config['token']):
             print("Token is invalid")
             return
 
@@ -32,7 +26,7 @@ class eqb_cmd(cmd2.Cmd):
         self.aliases['flowid'] = 'flowId'
         self.aliases['fileid'] = 'fileId'
 
-    def _validate_token(self, token, public_key_path):
+    def _validate_token(self, token):
         if not token:
             return False
         from bllose.helper.tokenHelper import verify_token, PUBLIC_KEY,load_public_key
