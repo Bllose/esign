@@ -29,13 +29,39 @@ class eqb_cmd(cmd2.Cmd):
     def _validate_token(self, token):
         if not token:
             return False
-        from bllose.helper.tokenHelper import verify_token, PUBLIC_KEY,load_public_key
+        from bllose.helper.tokenHelper import verify_token, PUBLIC_KEY, load_public_key
         is_valid, result = verify_token(load_public_key(PUBLIC_KEY), token)
         if not is_valid:
             raise ValueError("Token is invalid")
-        if datetime.strptime(result.split(',')[4], "%Y%m%d") < datetime.now():
+
+        # 获取token中的日期字符串
+        expire_date_str = result.split(',')[4]
+        
+        # 尝试多种常见的日期格式
+        date_formats = [
+            "%Y-%m-%d",    # 2025-01-24
+            "%Y%m%d",      # 20250124
+            "%Y/%m/%d",    # 2025/01/24
+            "%d/%m/%Y",    # 24/01/2025
+            "%m/%d/%Y",    # 01/24/2025
+            "%Y.%m.%d"     # 2025.01.24
+        ]
+        
+        expire_date = None
+        for date_format in date_formats:
+            try:
+                expire_date = datetime.strptime(expire_date_str, date_format)
+                break
+            except ValueError:
+                continue
+        
+        if expire_date is None:
+            raise ValueError(f"无法解析日期格式: {expire_date_str}")
+            
+        if expire_date.date() < datetime.now().date():
             print("Token is out of date!")
             raise ValueError("Token is out of date!")
+            
         return is_valid
 
 if __name__ == '__main__':
